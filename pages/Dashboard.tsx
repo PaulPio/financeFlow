@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import { transactionService, budgetService, authService } from '../services/localStorageService';
+import { transactionService, budgetService, authService, billService } from '../services/localStorageService';
 import { generateInsights } from '../services/geminiService';
-import { Transaction, Budget, TransactionCategory } from '../types';
-import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb } from 'lucide-react';
+import { Transaction, Budget, TransactionCategory, Bill } from '../types';
+import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb, TrendingUp, ArrowRight, CalendarClock, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
 
@@ -33,6 +34,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [insights, setInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -43,8 +45,11 @@ export default function Dashboard() {
       if (user) {
         const txs = await transactionService.getAll(user.id);
         const bgs = await budgetService.getAll(user.id);
+        const bls = await billService.getAll(user.id);
+        
         setTransactions(txs);
         setBudgets(bgs);
+        setBills(bls);
         setLoading(false);
 
         // Generate Insights after data load
@@ -62,6 +67,15 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  const handlePayBill = async (id: string) => {
+      await billService.markAsPaid(id);
+      const user = authService.getCurrentUser();
+      if (user) {
+          const updatedBills = await billService.getAll(user.id);
+          setBills(updatedBills);
+      }
+  };
+
   if (loading) return <div className="flex justify-center p-12">Loading dashboard...</div>;
 
   // Calculate totals
@@ -74,6 +88,7 @@ export default function Dashboard() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const balance = totalIncome - totalExpenses;
+  const surplus = totalIncome - totalExpenses; 
 
   // Pie Chart Data
   const expensesByCategory = transactions
@@ -87,6 +102,9 @@ export default function Dashboard() {
     name: cat,
     value: expensesByCategory[cat]
   }));
+
+  // Filter Upcoming Bills (Not paid, and due date is close or future)
+  const upcomingBills = bills.filter(b => !b.isPaid).slice(0, 3);
 
   return (
     <div className="space-y-6 pb-20 md:pb-0">
@@ -121,40 +139,107 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* AI Insights Section */}
-      <div className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-xl p-6 shadow-lg text-white relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-4 relative z-10">
-              <Sparkles className="text-amber-400" size={20} />
-              <h3 className="font-bold text-lg">FinFlow AI Insights</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
-              {loadingInsights ? (
-                  <div className="col-span-3 text-center py-4 text-slate-300 italic animate-pulse">
-                      Analyzing your spending patterns...
-                  </div>
-              ) : insights.length > 0 ? (
-                  insights.map((insight, idx) => (
-                      <div key={idx} className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/10 flex gap-3">
-                          <Lightbulb className="text-amber-300 flex-shrink-0 mt-1" size={18} />
-                          <p className="text-sm leading-relaxed">{insight}</p>
-                      </div>
-                  ))
-              ) : (
-                  <div className="col-span-3 text-center py-2 text-slate-400">
-                      Add more transactions to unlock AI insights.
-                  </div>
-              )}
-          </div>
-          
-          {/* Decorative Background Elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -ml-12 -mb-12"></div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* AI Insights Section */}
+        <div className="lg:col-span-2 bg-gradient-to-r from-indigo-900 to-slate-900 rounded-xl p-6 shadow-lg text-white relative overflow-hidden flex flex-col justify-between">
+            <div>
+                <div className="flex items-center gap-2 mb-4 relative z-10">
+                    <Sparkles className="text-amber-400" size={20} />
+                    <h3 className="font-bold text-lg">FinFlow AI Insights</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+                    {loadingInsights ? (
+                        <div className="col-span-2 text-center py-4 text-slate-300 italic animate-pulse">
+                            Analyzing your spending patterns...
+                        </div>
+                    ) : insights.length > 0 ? (
+                        insights.slice(0, 2).map((insight, idx) => (
+                            <div key={idx} className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/10 flex gap-3">
+                                <Lightbulb className="text-amber-300 flex-shrink-0 mt-1" size={18} />
+                                <p className="text-sm leading-relaxed">{insight}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-2 text-center py-2 text-slate-400">
+                            Add more transactions to unlock AI insights.
+                        </div>
+                    )}
+                </div>
+            </div>
+            {/* Decorative Background Elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -ml-12 -mb-12"></div>
+        </div>
+
+        {/* Investment Teaser Card */}
+        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
+            <div>
+                <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="text-emerald-500" size={24} />
+                    <h3 className="font-bold text-lg text-gray-800">Invest Your Surplus</h3>
+                </div>
+                {surplus > 0 ? (
+                    <>
+                        <p className="text-gray-500 text-sm mb-4">
+                            You have a potential surplus of <span className="font-bold text-emerald-600">${surplus.toFixed(0)}</span> this month.
+                        </p>
+                        <div className="bg-emerald-50 rounded-lg p-3 mb-4">
+                            <p className="text-xs text-emerald-800">
+                                If invested at 8%, this could be <span className="font-bold">${(surplus * 1.08).toFixed(0)}</span> in a year!
+                            </p>
+                        </div>
+                    </>
+                ) : (
+                    <p className="text-gray-500 text-sm mb-4">
+                        Track your budget to find surplus money to invest.
+                    </p>
+                )}
+            </div>
+            <Link 
+                to="/investments" 
+                className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
+            >
+                Start Investing
+                <ArrowRight size={16} />
+            </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Upcoming Bills (New) */}
+        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CalendarClock size={20} className="text-purple-500" />
+                Upcoming Bills
+            </h3>
+            <div className="space-y-3">
+                {upcomingBills.length > 0 ? (
+                    upcomingBills.map(bill => (
+                        <div key={bill.id} className="flex items-center justify-between p-3 border border-gray-50 rounded-lg hover:bg-gray-50">
+                            <div>
+                                <p className="font-medium text-gray-800">{bill.name}</p>
+                                <p className="text-xs text-gray-400">Due: {new Date(bill.dueDate).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-900">${bill.amount}</span>
+                                <button onClick={() => handlePayBill(bill.id)} className="text-emerald-500 hover:text-emerald-600" title="Mark Paid">
+                                    <CheckCircle size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center py-8 text-gray-400 text-sm">
+                        <p>No upcoming bills found.</p>
+                        <Link to="/upload" className="text-purple-600 hover:underline">Upload a statement</Link>
+                    </div>
+                )}
+            </div>
+        </div>
+
         {/* Expense Breakdown */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold mb-6">Spending Breakdown</h3>
           <div className="h-64 w-full">
             {pieData.length > 0 ? (
@@ -184,7 +269,7 @@ export default function Dashboard() {
         </div>
 
         {/* Budget Status */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold mb-6">Budget Status</h3>
           <div className="space-y-5">
             {budgets.map(budget => {

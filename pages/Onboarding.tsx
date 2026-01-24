@@ -15,6 +15,7 @@ const steps = [
 export default function Onboarding() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [error, setError] = useState('');
   const [profile, setProfile] = useState<FinancialProfile>({
     monthlyIncome: 0,
     currency: 'USD',
@@ -24,7 +25,27 @@ export default function Onboarding() {
     occupation: ''
   });
 
+  // Validation function
+  const canProceed = () => {
+      setError('');
+      if (currentStep === 2) {
+          if (!profile.monthlyIncome || profile.monthlyIncome <= 0) {
+              setError("Please enter a valid monthly income.");
+              return false;
+          }
+      }
+      if (currentStep === 3) {
+          if (!profile.occupation || !profile.occupation.trim()) {
+              setError("Please enter your occupation.");
+              return false;
+          }
+      }
+      return true;
+  };
+
   const handleNext = () => {
+    if (!canProceed()) return;
+
     if (currentStep < steps.length) {
       setCurrentStep(curr => curr + 1);
     } else {
@@ -38,11 +59,16 @@ export default function Onboarding() {
       financialProfile: profile,
       hasCompletedOnboarding: true
     });
+    
+    // Simple navigation is enough since Layout checks authService.getCurrentUser() on render
+    // We navigate to root, which will render Dashboard via Layout
     navigate('/');
+    // Reload only if absolutely necessary, but try to avoid it for smoother UX
   };
 
   const updateProfile = (key: keyof FinancialProfile, value: any) => {
     setProfile(prev => ({ ...prev, [key]: value }));
+    setError('');
   };
 
   // Render content based on step
@@ -50,7 +76,7 @@ export default function Onboarding() {
     switch(currentStep) {
       case 1:
         return (
-          <div className="text-center space-y-6 animate-fadeIn">
+          <div className="text-center space-y-6">
             <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Sparkles className="h-10 w-10 text-emerald-600" />
             </div>
@@ -62,7 +88,7 @@ export default function Onboarding() {
         );
       case 2:
         return (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6">
              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <DollarSign className="text-emerald-500" /> 
                 Income & Currency
@@ -78,6 +104,7 @@ export default function Onboarding() {
                         placeholder="4000"
                         value={profile.monthlyIncome || ''}
                         onChange={(e) => updateProfile('monthlyIncome', Number(e.target.value))}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNext()}
                         autoFocus
                     />
                 </div>
@@ -86,7 +113,7 @@ export default function Onboarding() {
         );
       case 3:
         return (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6">
              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Briefcase className="text-emerald-500" />
                 Occupation
@@ -99,6 +126,7 @@ export default function Onboarding() {
                     placeholder="e.g. Software Engineer, Teacher, Student"
                     value={profile.occupation}
                     onChange={(e) => updateProfile('occupation', e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleNext()}
                     autoFocus
                 />
              </div>
@@ -106,7 +134,7 @@ export default function Onboarding() {
         );
       case 4:
         return (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6">
              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Target className="text-emerald-500" />
                 Goals & Focus
@@ -135,13 +163,14 @@ export default function Onboarding() {
                     placeholder="e.g. Buy a house in 5 years"
                     value={profile.savingsGoal}
                     onChange={(e) => updateProfile('savingsGoal', e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleNext()}
                 />
              </div>
           </div>
         );
       case 5:
         return (
-           <div className="space-y-6 animate-fadeIn">
+           <div className="space-y-6">
              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <ShieldAlert className="text-emerald-500" />
                 Risk Tolerance
@@ -185,9 +214,12 @@ export default function Onboarding() {
              </div>
         </div>
 
-        <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8 min-h-[400px] flex flex-col">
+        <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8 min-h-[400px] flex flex-col transition-all">
             <div className="flex-1">
                 {renderContent()}
+                {error && (
+                    <p className="text-red-500 text-sm mt-4 text-center bg-red-50 p-2 rounded-lg">{error}</p>
+                )}
             </div>
 
             <div className="pt-8 mt-4 border-t border-gray-100 flex justify-between items-center">

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { User } from './types';
-import { authService } from './services/localStorageService';
+import { User, AppNotification } from './types';
+import { authService, notificationService } from './services/localStorageService';
 import { 
   LayoutDashboard, 
   Receipt, 
@@ -11,7 +11,9 @@ import {
   LogOut,
   Wallet,
   Target,
-  Settings
+  Settings,
+  TrendingUp,
+  Bell
 } from 'lucide-react';
 
 // Pages
@@ -24,39 +26,57 @@ import Login from './pages/Login';
 import Goals from './pages/Goals';
 import Profile from './pages/Profile';
 import Onboarding from './pages/Onboarding';
+import Investments from './pages/Investments';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  // Direct read ensures we have the latest data immediately after a navigation event 
-  // that was preceded by a synchronous local storage update (like finishing onboarding)
   const user = authService.getCurrentUser();
-  
-  // State to force re-renders for the polling mechanism
-  const [_, setTick] = useState(0);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
+  // Poll for notifications
+  // Fix: Depend on user.id instead of user object to avoid infinite loop
+  const userId = user?.id;
+  
   useEffect(() => {
-    // Poll for changes in local storage to keep UI in sync (e.g. multi-tab or background updates)
-    const interval = setInterval(() => {
-        setTick(t => t + 1);
-    }, 1000);
+    if (!userId) return;
+    const checkNotifs = async () => {
+        const all = await notificationService.getAll(userId);
+        setNotifications(all);
+        setUnreadCount(all.filter(n => !n.isRead).length);
+    };
+    checkNotifs();
+    const interval = setInterval(checkNotifs, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userId]);
 
   const handleLogout = () => {
     authService.logout();
     window.location.reload();
   };
 
+  const markAllRead = async () => {
+      if (user) {
+          await notificationService.markAllAsRead(user.id);
+          setUnreadCount(0);
+      }
+  };
+
   if (!user) {
     return <Navigate to="/login" />;
   }
 
-  // Force onboarding if not completed
+  // Redirect to onboarding if not done
   if (!user.hasCompletedOnboarding && location.pathname !== '/onboarding') {
       return <Navigate to="/onboarding" />;
   }
 
-  // If completing onboarding, allow rendering children (which is the Onboarding page itself in one case)
+  // Redirect to dashboard if onboarding IS done but user is trying to access onboarding
+  if (user.hasCompletedOnboarding && location.pathname === '/onboarding') {
+      return <Navigate to="/" />;
+  }
+
   if (location.pathname === '/onboarding') {
       return <>{children}</>;
   }
@@ -66,6 +86,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { path: '/transactions', label: 'Transactions', icon: Receipt },
     { path: '/budgets', label: 'Budgets', icon: PiggyBank },
     { path: '/goals', label: 'Goals', icon: Target },
+    { path: '/investments', label: 'Invest', icon: TrendingUp },
     { path: '/upload', label: 'Upload', icon: UploadCloud },
     { path: '/chat', label: 'AI Advisor', icon: MessageSquareText },
   ];
@@ -130,13 +151,61 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
            <Wallet className="h-6 w-6 text-emerald-400" />
            <span className="font-bold text-lg">FinFlow</span>
         </div>
-        <Link to="/profile" className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
-             {user.name.charAt(0).toUpperCase()}
-        </Link>
+        
+        <div className="flex items-center gap-3">
+             <div className="relative">
+                <button onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markAllRead(); }} className="relative p-1">
+                     <Bell size={20} />
+                     {unreadCount > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>}
+                </button>
+             </div>
+             <Link to="/profile" className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
+                  {user.name.charAt(0).toUpperCase()}
+             </Link>
+        </div>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto mt-16 md:mt-0">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto mt-16 md:mt-0 relative">
+        {/* Desktop Notification Bell */}
+        <div className="hidden md:flex absolute top-6 right-8 z-30">
+             <div className="relative">
+                 <button 
+                    onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markAllRead(); }}
+                    className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 border border-gray-200 relative"
+                 >
+                     <Bell size={20} className="text-gray-600" />
+                     {unreadCount > 0 && (
+                         <span className="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center">
+                             {unreadCount}
+                         </span>
+                     )}
+                 </button>
+
+                 {showNotifs && (
+                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-40">
+                         <div className="p-3 border-b border-gray-50 flex justify-between items-center">
+                             <h3 className="font-bold text-sm text-gray-800">Notifications</h3>
+                             <span className="text-xs text-gray-400">Recent alerts</span>
+                         </div>
+                         <div className="max-h-80 overflow-y-auto">
+                             {notifications.length > 0 ? (
+                                 notifications.map(n => (
+                                     <div key={n.id} className={`p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
+                                         <p className="text-sm font-medium text-gray-800">{n.title}</p>
+                                         <p className="text-xs text-gray-500 mt-1">{n.message}</p>
+                                         <p className="text-[10px] text-gray-400 mt-2 text-right">{new Date(n.date).toLocaleDateString()}</p>
+                                     </div>
+                                 ))
+                             ) : (
+                                 <div className="p-4 text-center text-gray-400 text-xs">No notifications yet</div>
+                             )}
+                         </div>
+                     </div>
+                 )}
+             </div>
+        </div>
+
         <div className="max-w-7xl mx-auto">
           {children}
         </div>
@@ -173,6 +242,7 @@ export default function App() {
         <Route path="/transactions" element={<Layout><Transactions /></Layout>} />
         <Route path="/budgets" element={<Layout><Budgets /></Layout>} />
         <Route path="/goals" element={<Layout><Goals /></Layout>} />
+        <Route path="/investments" element={<Layout><Investments /></Layout>} />
         <Route path="/upload" element={<Layout><Upload /></Layout>} />
         <Route path="/chat" element={<Layout><Chat /></Layout>} />
         <Route path="/profile" element={<Layout><Profile /></Layout>} />

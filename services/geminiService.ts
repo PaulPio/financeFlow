@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { TransactionCategory, Transaction, Budget, Goal, FinancialProfile } from "../types";
+import { TransactionCategory, Transaction, Budget, Goal, FinancialProfile, PortfolioAnalysis } from "../types";
 
 // Initialize Gemini
 // Note: In a real production app, API keys should not be exposed in client-side code.
@@ -369,4 +369,200 @@ export const parseGoalInput = async (input: string): Promise<{
             category: "Other"
         };
     }
+};
+
+// 9. Generate Investment Advice (Invest Your Surplus)
+export const generateInvestmentAdvice = async (surplus: number, profile?: FinancialProfile): Promise<string> => {
+    try {
+        const prompt = `
+            The user has a calculated monthly budget surplus of $${surplus.toFixed(2)}.
+            
+            User Profile:
+            Risk Tolerance: ${profile?.riskTolerance || 'Medium'}
+            Financial Focus: ${profile?.financialFocus || 'General'}
+            Age/Occupation: ${profile?.occupation || 'Unknown'}
+
+            Provide a specific, motivating investment tip (under 60 words).
+            Suggest how they could allocate this specific $${surplus} (e.g., S&P 500 ETF, High Yield Savings, paying debt).
+            Mention the power of compounding.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+        });
+
+        return response.text || `Investing $${surplus} monthly can grow significantly over time thanks to compound interest. Consider a diversified index fund!`;
+    } catch (e) {
+        console.error("Gemini Investment Advice Error:", e);
+        return `Great job having a surplus of $${surplus}! Investing this consistently is the key to building long-term wealth.`;
+    }
+};
+
+// 10. Parse Email Receipt (Gmail Integration)
+export const parseEmailReceipt = async (emailBody: string): Promise<any> => {
+  try {
+    const prompt = `
+      Analyze the following email text and extract transaction details.
+      Email Body: "${emailBody.substring(0, 8000).replace(/"/g, "'")}"
+
+      Extract:
+      1. Merchant Name (e.g. Amazon, Uber, Apple)
+      2. Date (ISO Format YYYY-MM-DD). If year is missing, assume current year.
+      3. Total Amount (Number only)
+      4. Suggested Category (one of: Dining, Groceries, Transportation, Entertainment, Shopping, Bills, Healthcare, Other)
+      5. Description (Short summary, e.g. "Amazon Order #123")
+
+      Return JSON only: { "merchant": string, "date": string, "amount": number, "category": string, "description": string }
+      If it is clearly not a receipt, invoice, or order confirmation, return null.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' }
+    });
+
+    const text = response.text;
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (e) {
+      console.error("Gemini Email Parse Error", e);
+      return null;
+  }
+};
+
+// 11. Parse Bank Statement PDF (Improved)
+export const parseBankStatement = async (pdfText: string): Promise<{
+    transactions: {date: string, merchant: string, amount: number, category: string}[],
+    statementInfo?: { dueDate?: string, amountDue?: number, institution?: string }
+}> => {
+    try {
+        const prompt = `
+            Analyze the following text extracted from a bank statement or credit card statement PDF.
+            
+            Common Formats to Handle:
+            1. Standard Tables: Date, Description, Debit, Credit, Balance columns.
+            2. Robinhood/Brokerage style: "Account Activity" section with "CDIV" (Div), "Buy", "Sell".
+               - Treat "Credit", "CDIV" (Cash Div), "Interest" as Income (Positive).
+               - Treat "Debit", "Buy", "Withholdings" as Expenses (Absolute value).
+            
+            Tasks:
+            1. Extract all individual transactions. 
+               - Date: YYYY-MM-DD.
+               - Merchant: Clean name (e.g., "Apple" instead of "APPLE STORE #1234 CA").
+               - Amount: ABSOLUTE value number.
+               - Category: Auto-categorize (Dining, Groceries, Income, Shopping, Bills, Investments, Other).
+                 * Note: Mark "Dividend", "Interest", "Deposit" as 'Income'.
+            
+            2. Extract Statement Summary Information if available:
+               - "dueDate": Payment Due Date.
+               - "amountDue": New Balance or Amount Due.
+               - "institution": Bank Name.
+
+            Input Text:
+            "${pdfText.substring(0, 40000).replace(/"/g, "'")}" 
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview', 
+            contents: prompt,
+            config: { 
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        transactions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    date: { type: Type.STRING },
+                                    merchant: { type: Type.STRING },
+                                    amount: { type: Type.NUMBER },
+                                    category: { type: Type.STRING }
+                                }
+                            }
+                        },
+                        statementInfo: {
+                            type: Type.OBJECT,
+                            properties: {
+                                dueDate: { type: Type.STRING },
+                                amountDue: { type: Type.NUMBER },
+                                institution: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const text = response.text;
+        if (!text) return { transactions: [] };
+        return JSON.parse(text);
+
+    } catch (e) {
+        console.error("Gemini Statement Parse Error", e);
+        return { transactions: [] };
+    }
+};
+
+// 12. Analyze Investment Portfolio PDF (New)
+export const analyzePortfolioPDF = async (pdfText: string): Promise<PortfolioAnalysis | null> => {
+  try {
+    const prompt = `
+      Act as a senior financial analyst. Analyze the following text extracted from an investment portfolio statement (e.g., Robinhood, Fidelity, Vanguard).
+
+      Input Text:
+      "${pdfText.substring(0, 40000).replace(/"/g, "'")}"
+
+      Tasks:
+      1. Extract Holdings: List symbols (e.g., AAPL, VOO), description, quantity, and market value.
+      2. Calculate Total Value: Sum of all holdings + cash.
+      3. Comparison & Analysis:
+         - Compare this portfolio's allocation (Equity/Bonds/Crypto/Cash) to a standard benchmark (e.g., S&P 500 or 60/40 portfolio).
+         - Comment on diversification (sector exposure, geo exposure).
+         - Assess Risk (Low, Medium, High).
+      
+      Output JSON format required.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            holdings: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  symbol: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  quantity: { type: Type.NUMBER },
+                  marketValue: { type: Type.NUMBER },
+                  allocation: { type: Type.STRING, description: "e.g., 'Equity', 'ETF', 'Crypto'" }
+                }
+              }
+            },
+            totalValue: { type: Type.NUMBER },
+            benchmarkComparison: { type: Type.STRING, description: "Paragraph comparing performance/allocation to benchmarks." },
+            riskAssessment: { type: Type.STRING, description: "Short assessment of risk level." },
+            aiComments: { type: Type.STRING, description: "3-4 sentences of actionable advice or observation." }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (text) return JSON.parse(text);
+    return null;
+
+  } catch (error) {
+    console.error("Gemini Portfolio Analysis Error:", error);
+    return null;
+  }
 };

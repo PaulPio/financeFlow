@@ -64,3 +64,39 @@ export interface Goal {
   category: 'Retirement' | 'Debt' | 'Education' | 'Health' | 'Purchase' | 'Emergency Fund' | 'Other';
   aiAdvice?: string;
 }
+
+export interface Bill {
+  id: string;
+  userId: string;
+  name: string; // e.g. "Chase Credit Card"
+  amount: number;
+  dueDate: string;
+  isPaid: boolean;
+  category: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'alert' | 'info' | 'success';
+  date: string;
+  isRead: boolean;
+}
+
+export interface PortfolioHolding {
+  symbol: string;
+  description: string;
+  quantity: number;
+  marketValue: number;
+  allocation?: string;
+}
+
+export interface PortfolioAnalysis {
+  holdings: PortfolioHolding[];
+  totalValue: number;
+  benchmarkComparison: string;
+  riskAssessment: string;
+  aiComments: string;
+}

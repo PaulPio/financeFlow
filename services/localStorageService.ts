@@ -1,4 +1,4 @@
-import { User, Transaction, Budget, TransactionCategory, Goal } from '../types';
+import { User, Transaction, Budget, TransactionCategory, Goal, Bill, AppNotification } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -8,6 +8,8 @@ const STORAGE_KEYS = {
     TRANSACTIONS: 'finflow_transactions',
     BUDGETS: 'finflow_budgets',
     GOALS: 'finflow_goals',
+    BILLS: 'finflow_bills',
+    NOTIFICATIONS: 'finflow_notifications',
     TOKEN: 'auth_token',
     CURRENT_USER: 'finflow_user'
 };
@@ -272,7 +274,6 @@ export const budgetService = {
 
 export const goalService = {
   getAll: async (userId: string): Promise<Goal[]> => {
-    // Fallback only for now as per instructions to stick to local/demo environment in context
     const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOALS) || '[]');
     return all.filter((g: Goal) => g.userId === userId);
   },
@@ -300,4 +301,86 @@ export const goalService = {
     all = all.filter((g: Goal) => g.id !== id);
     localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
   }
+};
+
+export const billService = {
+    getAll: async (userId: string): Promise<Bill[]> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
+        return all
+            .filter((b: Bill) => b.userId === userId)
+            .sort((a: Bill, b: Bill) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    },
+    
+    add: async (bill: Omit<Bill, 'id'>): Promise<Bill> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
+        const newBill = { ...bill, id: Date.now().toString() };
+        all.push(newBill);
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
+        
+        // Trigger notification
+        await notificationService.add({
+            userId: bill.userId,
+            title: 'New Bill Added',
+            message: `${bill.name} is due on ${new Date(bill.dueDate).toLocaleDateString()}`,
+            type: 'info'
+        });
+
+        // Simulate Email
+        console.log(`[EMAIL SENT] To: user@finflow.com | Subject: New Bill Due | Body: You have a payment of $${bill.amount} for ${bill.name} due on ${bill.dueDate}`);
+
+        return newBill;
+    },
+
+    markAsPaid: async (id: string): Promise<void> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
+        const index = all.findIndex((b: Bill) => b.id === id);
+        if (index !== -1) {
+            all[index].isPaid = true;
+            localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
+        }
+    }
+};
+
+export const notificationService = {
+    getAll: async (userId: string): Promise<AppNotification[]> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
+        return all
+            .filter((n: AppNotification) => n.userId === userId)
+            .sort((a: AppNotification, b: AppNotification) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+
+    getUnreadCount: async (userId: string): Promise<number> => {
+        const all = await notificationService.getAll(userId);
+        return all.filter(n => !n.isRead).length;
+    },
+
+    add: async (notif: Omit<AppNotification, 'id' | 'date' | 'isRead'>): Promise<AppNotification> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
+        const newNotif: AppNotification = {
+            ...notif,
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            isRead: false
+        };
+        all.push(newNotif);
+        localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
+        return newNotif;
+    },
+
+    markAsRead: async (id: string): Promise<void> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
+        const index = all.findIndex((n: AppNotification) => n.id === id);
+        if (index !== -1) {
+            all[index].isRead = true;
+            localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
+        }
+    },
+    
+    markAllAsRead: async (userId: string): Promise<void> => {
+        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
+        const updated = all.map((n: AppNotification) => 
+            n.userId === userId ? { ...n, isRead: true } : n
+        );
+        localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
+    }
 };

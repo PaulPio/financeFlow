@@ -1,0 +1,8 @@
+{
+  "name": "FinFlow",
+  "description": "AI-Powered Personal Budget Tracker & Financial Advisor",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

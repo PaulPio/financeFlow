@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { goalService, authService, transactionService } from '../services/localStorageService';
+import { authClient } from '../lib/auth-client';
 import { generateGoalStrategy, parseGoalInput } from '../services/geminiService';
 import { Goal } from '../types';
 import { Target, Plus, Trash2, Calendar, TrendingUp, Sparkles, Loader2, Send, ArrowRight } from 'lucide-react';
@@ -10,6 +11,7 @@ export default function Goals() {
     const [analyzing, setAnalyzing] = useState(false);
     const [planningGoalId, setPlanningGoalId] = useState<string | null>(null);
     const [goalPrompt, setGoalPrompt] = useState('');
+    const { data: session } = authClient.useSession();
 
     const fetchData = async () => {
         const user = authService.getCurrentUser();
@@ -22,7 +24,7 @@ export default function Goals() {
     useEffect(() => {
         fetchData();
         syncFirstGoalWithBalance();
-    }, []);
+    }, [session?.user?.id]);
 
     const syncFirstGoalWithBalance = async () => {
         const user = authService.getCurrentUser();

@@ -7,10 +7,15 @@ let ai: GoogleGenAI;
 
 const getAi = () => {
   if (!ai) {
-    const apiKey = import.meta.env.VITE_API_KEY || '';
+    // Try multiple possible locations for the API Key
+    const apiKey = import.meta.env.VITE_API_KEY || (window as any).process?.env?.GEMINI_API_KEY || '';
+
     if (!apiKey) {
-      console.warn("Gemini API Key is missing! AI features will not work.");
+      console.warn("Gemini API Key is missing! AI features will not work. Please check your .env file and restart the dev server.");
+    } else {
+      console.log("Gemini AI Initialized with Key starting with:", apiKey.substring(0, 5) + "...");
     }
+
     ai = new GoogleGenAI({ apiKey });
   }
   return ai;

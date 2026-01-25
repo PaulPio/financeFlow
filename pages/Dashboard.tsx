@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { transactionService, budgetService, authService, billService, portfolioService } from '../services/localStorageService';
+import { authClient } from '../lib/auth-client';
 import { generateInsights } from '../services/geminiService';
 import { Transaction, Budget, TransactionCategory, Bill } from '../types';
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb, TrendingUp, ArrowRight, CalendarClock, CheckCircle, Loader2, ChevronDown, Receipt } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [insights, setInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const { data: session } = authClient.useSession();
 
   // Month Selection State
   const now = new Date();
@@ -90,7 +92,7 @@ export default function Dashboard() {
       }
     };
     fetchData();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, session?.user?.id]);
 
   const handlePayBill = async (id: string) => {
     await billService.markAsPaid(id);
@@ -129,10 +131,18 @@ export default function Dashboard() {
       return acc;
     }, {} as Record<string, number>);
 
-  const pieData = Object.keys(expensesByCategory).map(cat => ({
-    name: cat,
-    value: expensesByCategory[cat]
-  }));
+  // Simplify Pie Chart Data: Top 3 + Other
+  const sortedCategories = Object.entries(expensesByCategory)
+    .sort(([, a], [, b]) => (b as number) - (a as number));
+
+  const top3 = sortedCategories.slice(0, 3);
+  const others = sortedCategories.slice(3);
+
+  const pieData = top3.map(([name, value]) => ({ name, value }));
+  if (others.length > 0) {
+    const othersValue = others.reduce((sum: number, [, value]) => sum + (value as number), 0);
+    pieData.push({ name: 'Other', value: othersValue });
+  }
 
   // Filter Upcoming Bills (Not paid, and due date is close or future)
   const upcomingBills = bills.filter(b => !b.isPaid).slice(0, 3);

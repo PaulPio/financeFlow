@@ -112,7 +112,7 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
   }
 });
 
-// ... and so on for others ...
+
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const transaction = new Transaction({ ...req.body, userId: req.user.id });

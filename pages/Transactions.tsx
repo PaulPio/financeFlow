@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { transactionService, authService } from '../services/localStorageService';
+import { authClient } from '../lib/auth-client';
 import { Transaction, TransactionCategory } from '../types';
 import { Trash2, Search, Filter, Calendar as CalendarIcon } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default function Transactions() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const { data: session } = authClient.useSession();
 
   const fetchTransactions = async () => {
     const user = authService.getCurrentUser();
@@ -25,7 +27,7 @@ export default function Transactions() {
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     let result = transactions;

@@ -35,26 +35,26 @@ export const categorizeTransaction = async (merchant: string, amount: number, de
 
 // 2. Chat with Financial Advisor (Reasoning - Pro)
 export const chatWithAdvisor = async (
-    history: {role: 'user'|'model', text: string}[], 
-    newMessage: string,
-    context?: { transactions: Transaction[], budgets: Budget[], userProfile?: FinancialProfile }
+  history: { role: 'user' | 'model', text: string }[],
+  newMessage: string,
+  context?: { transactions: Transaction[], budgets: Budget[], userProfile?: FinancialProfile }
 ) => {
   try {
     let systemInstruction = "You are an expert personal finance advisor named FinFlow AI. Be helpful, concise, and friendly. Use data visualization text descriptions if helpful.";
-    
+
     // Inject user data into the system prompt if available
     if (context) {
-        const txSummary = context.transactions.slice(0, 100).map(t => 
-            `${new Date(t.date).toISOString().split('T')[0]}: ${t.merchant} ($${t.amount}, ${t.category})`
-        ).join('\n');
-        
-        const budgetSummary = context.budgets.map(b => 
-            `${b.category} Budget: Limit $${b.limit} (${b.period})`
-        ).join('\n');
+      const txSummary = context.transactions.slice(0, 100).map(t =>
+        `${new Date(t.date).toISOString().split('T')[0]}: ${t.merchant} ($${t.amount}, ${t.category})`
+      ).join('\n');
 
-        let profileContext = "";
-        if (context.userProfile) {
-            profileContext = `
+      const budgetSummary = context.budgets.map(b =>
+        `${b.category} Budget: Limit $${b.limit} (${b.period})`
+      ).join('\n');
+
+      let profileContext = "";
+      if (context.userProfile) {
+        profileContext = `
             USER PROFILE:
             - Occupation: ${context.userProfile.occupation || 'Not specified'}
             - Monthly Income: $${context.userProfile.monthlyIncome}
@@ -64,9 +64,9 @@ export const chatWithAdvisor = async (
             
             Tailor your advice to support the user's financial focus (${context.userProfile.financialFocus}) and risk tolerance.
             `;
-        }
+      }
 
-        systemInstruction += `
+      systemInstruction += `
         
         ${profileContext}
 
@@ -103,24 +103,24 @@ export const chatWithAdvisor = async (
 };
 
 // 3. Search for Financial News/Info (Grounding - Flash + Search)
-export const searchFinancialTopic = async (query: string): Promise<{text: string, sources: any[]}> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: query,
-            config: {
-                tools: [{ googleSearch: {} }]
-            }
-        });
-        
-        return {
-            text: response.text || "No results found.",
-            sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-        };
-    } catch (error) {
-        console.error("Gemini Search Error", error);
-        return { text: "Search currently unavailable.", sources: [] };
-    }
+export const searchFinancialTopic = async (query: string): Promise<{ text: string, sources: any[] }> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: query,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    return {
+      text: response.text || "No results found.",
+      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+    };
+  } catch (error) {
+    console.error("Gemini Search Error", error);
+    return { text: "Search currently unavailable.", sources: [] };
+  }
 }
 
 // 4. Analyze Receipt Image (Vision - Pro)
@@ -151,9 +151,9 @@ export const analyzeReceipt = async (base64Image: string): Promise<any> => {
             date: { type: Type.STRING },
             amount: { type: Type.NUMBER },
             category: { type: Type.STRING },
-            items: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
+            items: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             }
           }
         }
@@ -162,7 +162,7 @@ export const analyzeReceipt = async (base64Image: string): Promise<any> => {
 
     const text = response.text;
     if (text) {
-        return JSON.parse(text);
+      return JSON.parse(text);
     }
     throw new Error("No JSON returned");
 
@@ -271,18 +271,18 @@ export const generateInsights = async (transactions: Transaction[], budgets: Bud
 
 // 7. Generate Goal Strategy (Reasoning - Pro)
 export const generateGoalStrategy = async (goal: Goal, transactions: Transaction[]): Promise<string> => {
-    try {
-        const monthlyIncome = transactions
-            .filter(t => t.category === 'Income')
-            .reduce((sum, t) => sum + t.amount, 0) / 3; // Approx average over last ~3 months if available, simplifying for demo
-        
-        const monthlyExpense = transactions
-            .filter(t => t.category !== 'Income')
-            .reduce((sum, t) => sum + t.amount, 0) / 3;
+  try {
+    const monthlyIncome = transactions
+      .filter(t => t.category === 'Income')
+      .reduce((sum, t) => sum + t.amount, 0) / 3; // Approx average over last ~3 months if available, simplifying for demo
 
-        const discretionary = monthlyIncome - monthlyExpense;
+    const monthlyExpense = transactions
+      .filter(t => t.category !== 'Income')
+      .reduce((sum, t) => sum + t.amount, 0) / 3;
 
-        const prompt = `
+    const discretionary = monthlyIncome - monthlyExpense;
+
+    const prompt = `
             Act as a strategic financial planner. 
             The user wants to achieve this goal:
             Goal Name: ${goal.name}
@@ -301,28 +301,28 @@ export const generateGoalStrategy = async (goal: Goal, transactions: Transaction
             Keep the response concise (under 100 words).
         `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
-            contents: prompt,
-        });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+    });
 
-        return response.text || "Could not generate a plan at this time.";
-    } catch (e) {
-        console.error("Gemini Goal Strategy Error:", e);
-        return "Focus on consistent monthly savings to reach your target.";
-    }
+    return response.text || "Could not generate a plan at this time.";
+  } catch (e) {
+    console.error("Gemini Goal Strategy Error:", e);
+    return "Focus on consistent monthly savings to reach your target.";
+  }
 }
 
 // 8. Parse Natural Language Goal Input (Reasoning)
 export const parseGoalInput = async (input: string): Promise<{
-    name: string;
-    targetAmount: number;
-    deadline: string;
-    category: string;
+  name: string;
+  targetAmount: number;
+  deadline: string;
+  category: string;
 }> => {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        const prompt = `
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const prompt = `
             Extract financial goal details from the following user text.
             User Text: "${input}"
             
@@ -337,44 +337,44 @@ export const parseGoalInput = async (input: string): Promise<{
             Return JSON.
         `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', // Good balance of speed/reasoning for extraction
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        name: { type: Type.STRING },
-                        targetAmount: { type: Type.NUMBER },
-                        deadline: { type: Type.STRING },
-                        category: { type: Type.STRING },
-                    }
-                }
-            }
-        });
-
-        const text = response.text;
-        if (text) {
-            return JSON.parse(text);
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview', // Good balance of speed/reasoning for extraction
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            targetAmount: { type: Type.NUMBER },
+            deadline: { type: Type.STRING },
+            category: { type: Type.STRING },
+          }
         }
-        throw new Error("Failed to parse goal");
-    } catch (error) {
-        console.error("Gemini Parse Goal Error:", error);
-        // Fallback default
-        return {
-            name: "New Goal",
-            targetAmount: 0,
-            deadline: new Date(Date.now() + 31536000000).toISOString().split('T')[0], // +1 year
-            category: "Other"
-        };
+      }
+    });
+
+    const text = response.text;
+    if (text) {
+      return JSON.parse(text);
     }
+    throw new Error("Failed to parse goal");
+  } catch (error) {
+    console.error("Gemini Parse Goal Error:", error);
+    // Fallback default
+    return {
+      name: "New Goal",
+      targetAmount: 0,
+      deadline: new Date(Date.now() + 31536000000).toISOString().split('T')[0], // +1 year
+      category: "Other"
+    };
+  }
 };
 
 // 9. Generate Investment Advice (Invest Your Surplus)
 export const generateInvestmentAdvice = async (surplus: number, profile?: FinancialProfile): Promise<string> => {
-    try {
-        const prompt = `
+  try {
+    const prompt = `
             The user has a calculated monthly budget surplus of $${surplus.toFixed(2)}.
             
             User Profile:
@@ -387,16 +387,16 @@ export const generateInvestmentAdvice = async (surplus: number, profile?: Financ
             Mention the power of compounding.
         `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
 
-        return response.text || `Investing $${surplus} monthly can grow significantly over time thanks to compound interest. Consider a diversified index fund!`;
-    } catch (e) {
-        console.error("Gemini Investment Advice Error:", e);
-        return `Great job having a surplus of $${surplus}! Investing this consistently is the key to building long-term wealth.`;
-    }
+    return response.text || `Investing $${surplus} monthly can grow significantly over time thanks to compound interest. Consider a diversified index fund!`;
+  } catch (e) {
+    console.error("Gemini Investment Advice Error:", e);
+    return `Great job having a surplus of $${surplus}! Investing this consistently is the key to building long-term wealth.`;
+  }
 };
 
 // 10. Parse Email Receipt (Gmail Integration)
@@ -418,28 +418,28 @@ export const parseEmailReceipt = async (emailBody: string): Promise<any> => {
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: { responseMimeType: 'application/json' }
     });
 
     const text = response.text;
     if (!text) return null;
     return JSON.parse(text);
   } catch (e) {
-      console.error("Gemini Email Parse Error", e);
-      return null;
+    console.error("Gemini Email Parse Error", e);
+    return null;
   }
 };
 
 // 11. Parse Bank Statement PDF (Improved)
 export const parseBankStatement = async (pdfText: string): Promise<{
-    transactions: {date: string, merchant: string, amount: number, category: string}[],
-    statementInfo?: { dueDate?: string, amountDue?: number, institution?: string }
+  transactions: { date: string, merchant: string, amount: number, category: string }[],
+  statementInfo?: { dueDate?: string, amountDue?: number, institution?: string }
 }> => {
-    try {
-        console.log("[Gemini] Analyzing Bank Statement. Input Text Preview:", pdfText.substring(0, 500));
-        const prompt = `
+  try {
+    console.log("[Gemini] Analyzing Bank Statement. Input Text Preview:", pdfText.substring(0, 500));
+    const prompt = `
             Analyze the following text extracted from a bank statement or credit card statement PDF.
             
             Input Text:
@@ -453,50 +453,56 @@ export const parseBankStatement = async (pdfText: string): Promise<{
             Return JSON with:
             - transactions: [{date, merchant, amount, category}]
             - statementInfo: { dueDate (YYYY-MM-DD or null), amountDue (number or 0), institution (string or null) }
+
+            IMPORTANT RULES:
+            - Differentiate between CREDIT (Deposits) and DEBIT (Withdrawals/Payments).
+            - If a transaction is a CREDIT/DEPOSIT, set the category to "Income".
+            - If a transaction is a DEBIT/PAYMENT, infer the category based on the merchant.
+            - Ensure amount is always positive number.
         `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', 
-            contents: prompt,
-            config: { 
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        transactions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    date: { type: Type.STRING },
-                                    merchant: { type: Type.STRING },
-                                    amount: { type: Type.NUMBER },
-                                    category: { type: Type.STRING }
-                                }
-                            }
-                        },
-                        statementInfo: {
-                            type: Type.OBJECT,
-                            properties: {
-                                dueDate: { type: Type.STRING, nullable: true },
-                                amountDue: { type: Type.NUMBER, nullable: true },
-                                institution: { type: Type.STRING, nullable: true }
-                            }
-                        }
-                    }
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            transactions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  date: { type: Type.STRING },
+                  merchant: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  category: { type: Type.STRING }
                 }
+              }
+            },
+            statementInfo: {
+              type: Type.OBJECT,
+              properties: {
+                dueDate: { type: Type.STRING, nullable: true },
+                amountDue: { type: Type.NUMBER, nullable: true },
+                institution: { type: Type.STRING, nullable: true }
+              }
             }
-        });
+          }
+        }
+      }
+    });
 
-        const text = response.text;
-        console.log("[Gemini] Response:", text ? "Received" : "Empty");
-        if (!text) return { transactions: [] };
-        return JSON.parse(text);
+    const text = response.text;
+    console.log("[Gemini] Response:", text ? "Received" : "Empty");
+    if (!text) return { transactions: [] };
+    return JSON.parse(text);
 
-    } catch (e) {
-        console.error("Gemini Statement Parse Error", e);
-        return { transactions: [] };
-    }
+  } catch (e) {
+    console.error("Gemini Statement Parse Error", e);
+    return { transactions: [] };
+  }
 };
 
 // 12. Analyze Investment Portfolio PDF (Fixed Prompt)

@@ -74,15 +74,18 @@ export default function Dashboard() {
 
         const bgs = await budgetService.getAll(user.id, selectedMonth, selectedYear);
         const bls = await billService.getAll(user.id);
+        const portfolio = await portfolioService.get(user.id);
 
-        // Calculate Net Worth (Lifetime)
+        // Calculate Net Worth (Lifetime Cash Flow + Investment Value)
         const lifetimeIncome = allTx
           .filter(t => t.category === TransactionCategory.Income)
           .reduce((sum, t) => sum + t.amount, 0);
         const lifetimeExpenses = allTx
           .filter(t => t.category !== TransactionCategory.Income)
           .reduce((sum, t) => sum + t.amount, 0);
-        setNetWorth(lifetimeIncome - lifetimeExpenses);
+
+        const portfolioValue = portfolio?.totalValue || 0;
+        setNetWorth((lifetimeIncome - lifetimeExpenses) + portfolioValue);
 
         setTransactions(filteredTx);
         setBudgets(bgs);

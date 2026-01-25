@@ -438,6 +438,7 @@ export const parseBankStatement = async (pdfText: string): Promise<{
     statementInfo?: { dueDate?: string, amountDue?: number, institution?: string }
 }> => {
     try {
+        console.log("[Gemini] Analyzing Bank Statement. Input Text Preview:", pdfText.substring(0, 500));
         const prompt = `
             Analyze the following text extracted from a bank statement or credit card statement PDF.
             
@@ -488,6 +489,7 @@ export const parseBankStatement = async (pdfText: string): Promise<{
         });
 
         const text = response.text;
+        console.log("[Gemini] Response:", text ? "Received" : "Empty");
         if (!text) return { transactions: [] };
         return JSON.parse(text);
 

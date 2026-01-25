@@ -143,6 +143,7 @@ export default function Upload() {
 
   // --- Bank Statement PDF Logic ---
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      console.log("[Upload] PDF File Selected:", e.target.files?.[0]?.name);
       if (e.target.files && e.target.files[0]) {
           setPdfFile(e.target.files[0]);
           setParsedData([]);
@@ -151,26 +152,38 @@ export default function Upload() {
   };
 
   const processPdf = async () => {
-      if (!pdfFile) return;
+      if (!pdfFile) {
+          console.warn("[Upload] No PDF file to process");
+          return;
+      }
+      console.log("[Upload] Starting PDF Processing...");
       setLoading(true);
       setProgress('Extracting text from PDF...');
 
       try {
           // 1. Extract Text
+          console.time("PDFExtraction");
           const text = await extractTextFromPdf(pdfFile);
+          console.timeEnd("PDFExtraction");
           
+          console.log("[Upload] Extracted Text Preview:", text.substring(0, 200));
+
           if (!text || text.length < 50) {
               throw new Error("PDF seems empty or unreadable.");
           }
 
           setProgress('AI is analyzing bank statement...');
           // 2. Parse with Gemini
+          console.time("GeminiAnalysis");
           const result = await parseBankStatement(text);
+          console.timeEnd("GeminiAnalysis");
+          console.log("[Upload] Gemini Result:", result);
 
           setParsedData(result.transactions || []);
           
           // Only set statement info if it looks valid
           if (result.statementInfo && result.statementInfo.amountDue > 0) {
+              console.log("[Upload] Bill Detected:", result.statementInfo);
               setStatementInfo(result.statementInfo);
           } else {
               setStatementInfo(null);
@@ -180,7 +193,7 @@ export default function Upload() {
           setProgress('Statement analyzed. Please review.');
 
       } catch (e: any) {
-          console.error(e);
+          console.error("[Upload] Processing Error:", e);
           setLoading(false);
           alert(`Error analyzing PDF: ${e.message || "Unknown error"}. Please ensure it is a text-based PDF.`);
       }

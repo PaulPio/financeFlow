@@ -416,38 +416,7 @@ export const generateInvestmentAdvice = async (surplus: number, profile?: Financ
   }
 };
 
-// 10. Parse Email Receipt (Gmail Integration)
-export const parseEmailReceipt = async (emailBody: string): Promise<any> => {
-  try {
-    const prompt = `
-      Analyze the following email text and extract transaction details.
-      Email Body: "${emailBody.substring(0, 8000).replace(/"/g, "'")}"
 
-      Extract:
-      1. Merchant Name (e.g. Amazon, Uber, Apple)
-      2. Date (ISO Format YYYY-MM-DD). If year is missing, assume current year.
-      3. Total Amount (Number only)
-      4. Suggested Category (one of: Dining, Groceries, Transportation, Entertainment, Shopping, Bills, Healthcare, Housing, Utilities, Insurance, Loans, Education, Travel, Other)
-      5. Description (Short summary, e.g. "Amazon Order #123")
-
-      Return JSON only: { "merchant": string, "date": string, "amount": number, "category": string, "description": string }
-      If it is clearly not a receipt, invoice, or order confirmation, return null.
-    `;
-
-    const response = await getAi().models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: { responseMimeType: 'application/json' }
-    });
-
-    const text = response.text;
-    if (!text) return null;
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Gemini Email Parse Error", e);
-    return null;
-  }
-};
 
 // 11. Parse Bank Statement PDF (Improved)
 export const parseBankStatement = async (pdfText: string): Promise<{

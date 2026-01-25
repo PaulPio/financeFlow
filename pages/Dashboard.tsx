@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [insights, setInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [netWorth, setNetWorth] = useState(0);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const { data: session } = authClient.useSession();
 
@@ -73,6 +74,15 @@ export default function Dashboard() {
 
         const bgs = await budgetService.getAll(user.id, selectedMonth, selectedYear);
         const bls = await billService.getAll(user.id);
+
+        // Calculate Net Worth (Lifetime)
+        const lifetimeIncome = allTx
+          .filter(t => t.category === TransactionCategory.Income)
+          .reduce((sum, t) => sum + t.amount, 0);
+        const lifetimeExpenses = allTx
+          .filter(t => t.category !== TransactionCategory.Income)
+          .reduce((sum, t) => sum + t.amount, 0);
+        setNetWorth(lifetimeIncome - lifetimeExpenses);
 
         setTransactions(filteredTx);
         setBudgets(bgs);
@@ -182,9 +192,15 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
-          title="Total Balance"
+          title="Net Worth"
+          value={`$${netWorth.toLocaleString()}`}
+          icon={Wallet}
+          color="bg-indigo-600"
+        />
+        <StatCard
+          title="Monthly Balance"
           value={`$${balance.toLocaleString()}`}
           icon={Wallet}
           color="bg-blue-500"
@@ -396,25 +412,30 @@ export default function Dashboard() {
           </div>
           <div className="space-y-6">
             {budgets.map(budget => {
-              const spent = expensesByCategory[budget.category] || 0;
+              // Use service-provided spent value if available, or fallback to local calc
+              const spent = (budget as any).spent ?? (expensesByCategory[budget.category] || 0);
               const percentage = Math.min((spent / budget.limit) * 100, 100);
               const isOver = spent > budget.limit;
+              const isWarning = !isOver && percentage > 80;
 
               return (
                 <div key={budget.id} className="group/item">
                   <div className="flex justify-between text-xs font-bold mb-2 uppercase tracking-tight">
                     <span className="text-gray-500 font-bold">{budget.category}</span>
                     <span className={isOver ? "text-red-600" : "text-slate-900"}>
-                      ${spent.toLocaleString()} / <span className="text-gray-400">${budget.limit.toLocaleString()}</span>
+                      ${spent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / <span className="text-gray-400">${budget.limit.toLocaleString()}</span>
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-gray-50 shadow-inner">
                     <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-out relative ${isOver ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`}
+                      className={`h-full rounded-full transition-all duration-500 ease-out relative ${isOver
+                        ? 'bg-red-500'
+                        : isWarning
+                          ? 'bg-amber-400'
+                          : 'bg-emerald-500'
+                        }`}
                       style={{ width: `${percentage}%` }}
-                    >
-                      <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                    </div>
+                    ></div>
                   </div>
                 </div>
               )

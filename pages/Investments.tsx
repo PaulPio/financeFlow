@@ -20,6 +20,7 @@ export default function Investments() {
     const [monthlySpent, setMonthlySpent] = useState(0);
     const [investAmount, setInvestAmount] = useState(0);
     const [rateOfReturn, setRateOfReturn] = useState(7); // Default 7%
+    const [projectionYears, setProjectionYears] = useState(10); // Default 10 years
     const [aiAdvice, setAiAdvice] = useState<string>('');
     const [loadingAdvice, setLoadingAdvice] = useState(false);
 
@@ -92,7 +93,7 @@ export default function Investments() {
         let currentCash = 0; // We keep cash separate to compare "Investing vs Saving in Cash"
         const monthlyRate = rateOfReturn / 100 / 12;
 
-        for (let year = 0; year <= 10; year++) {
+        for (let year = 0; year <= projectionYears; year++) {
             data.push({
                 year: `Year ${year}`,
                 invested: Math.round(currentInvested),
@@ -254,20 +255,43 @@ export default function Investments() {
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="flex justify-between">
-                            <label className="text-sm font-medium text-gray-700">Est. Annual Return</label>
-                            <span className="text-sm font-bold text-emerald-600">{rateOfReturn}%</span>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                            <label className="text-sm font-medium text-gray-700">Annual Return (%)</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={rateOfReturn}
+                                onChange={(e) => setRateOfReturn(Number(e.target.value))}
+                                className="w-20 text-right border border-gray-300 rounded-lg p-1 text-sm font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            />
                         </div>
                         <div className="flex gap-2 text-xs">
-                            <button onClick={() => setRateOfReturn(4)} className={`px-2 py-1 rounded border ${rateOfReturn === 4 ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-gray-50'}`}>Conservative</button>
-                            <button onClick={() => setRateOfReturn(7)} className={`px-2 py-1 rounded border ${rateOfReturn === 7 ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-gray-50'}`}>Moderate</button>
-                            <button onClick={() => setRateOfReturn(10)} className={`px-2 py-1 rounded border ${rateOfReturn === 10 ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-gray-50'}`}>Aggressive</button>
+                            <button onClick={() => setRateOfReturn(4)} className={`flex-1 py-1 rounded border ${rateOfReturn === 4 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-bold' : 'bg-gray-50 text-gray-600'}`}>Conservative (4%)</button>
+                            <button onClick={() => setRateOfReturn(7)} className={`flex-1 py-1 rounded border ${rateOfReturn === 7 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-bold' : 'bg-gray-50 text-gray-600'}`}>Moderate (7%)</button>
+                            <button onClick={() => setRateOfReturn(10)} className={`flex-1 py-1 rounded border ${rateOfReturn === 10 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-bold' : 'bg-gray-50 text-gray-600'}`}>Aggressive (10%)</button>
                         </div>
                     </div>
 
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                        <div className="flex justify-between items-center text-sm">
+                            <label className="font-medium text-gray-700">Projection Period</label>
+                            <span className="font-bold text-slate-900">{projectionYears} Years</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="5"
+                            max="50"
+                            step="5"
+                            value={projectionYears}
+                            onChange={(e) => setProjectionYears(Number(e.target.value))}
+                            className="w-full accent-slate-900"
+                        />
+                    </div>
+
                     <div className="bg-emerald-900 text-white p-4 rounded-xl text-center">
-                        <p className="text-sm opacity-80 mb-1">Projected Value in 10 Years</p>
+                        <p className="text-sm opacity-80 mb-1">Projected Value in {projectionYears} Years</p>
                         <p className="text-3xl font-bold">${projectedTotal.toLocaleString()}</p>
                         <p className="text-xs text-emerald-300 mt-2">vs ${cashTotal.toLocaleString()} if kept in cash</p>
                     </div>

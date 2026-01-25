@@ -248,9 +248,9 @@ export default function Dashboard() {
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
               <p className="text-xs text-slate-400 font-medium italic">AI advice is for informational purposes only.</p>
-              <button className="text-indigo-600 text-sm font-bold flex items-center gap-2 hover:gap-3 transition-all">
+              <Link to="/analysis" className="text-indigo-600 text-sm font-bold flex items-center gap-2 hover:gap-3 transition-all">
                 View Deep Scan <ArrowRight size={16} />
-              </button>
+              </Link>
             </div>
           </div>
           {/* Enhanced Decorative Elements */}

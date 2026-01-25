@@ -170,6 +170,7 @@ export const transactionService = {
     },
 
     add: async (transaction: Omit<Transaction, 'id'>): Promise<Transaction> => {
+        console.log("[TransactionService] Attempting to save transaction to DB...", transaction);
         try {
             const res = await fetch(`${API_URL}/transactions`, {
                 method: 'POST',
@@ -178,8 +179,11 @@ export const transactionService = {
                 credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
-            return await res.json();
+            const data = await res.json();
+            console.log("[TransactionService] Success! Transaction saved to DB:", data);
+            return data;
         } catch (e) {
+            console.warn("[TransactionService] DB Connection Failed. Falling back to Local Storage.", e);
             const all = safeParse(STORAGE_KEYS.TRANSACTIONS);
             const newTx = { ...transaction, id: Date.now().toString() };
             all.push(newTx);

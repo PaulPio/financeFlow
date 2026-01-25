@@ -64,7 +64,7 @@ const authenticateToken = async (req, res, next) => {
       stack: error.stack,
       headers: req.headers
     });
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Internal Server Error in Auth Middleware",
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -120,9 +120,11 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 
 
 app.post('/api/transactions', authenticateToken, async (req, res) => {
+  console.log("[API] Received POST /api/transactions request");
   try {
     const transaction = new Transaction({ ...req.body, userId: req.user.id });
     await transaction.save();
+    console.log("[API] Transaction successfully saved to MongoDB:", transaction._id);
     res.json({ ...transaction.toObject(), id: transaction._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -162,9 +164,11 @@ app.post('/api/goals', authenticateToken, async (req, res) => {
   try {
     const { id, ...data } = req.body;
     if (id) {
+      // Prevent userId spoofing
+      const { userId, ...updateData } = data;
       const updated = await Goal.findOneAndUpdate(
         { _id: id, userId: req.user.id },
-        data,
+        updateData,
         { new: true }
       );
       return res.json({ ...updated.toObject(), id: updated._id });
@@ -224,9 +228,11 @@ app.post('/api/bills', authenticateToken, async (req, res) => {
   try {
     const { id, ...data } = req.body;
     if (id) {
+      // Prevent userId spoofing
+      const { userId, ...updateData } = data;
       const updated = await Bill.findOneAndUpdate(
         { _id: id, userId: req.user.id },
-        data,
+        updateData,
         { new: true }
       );
       return res.json({ ...updated.toObject(), id: updated._id });
@@ -298,9 +304,11 @@ app.post('/api/budgets', authenticateToken, async (req, res) => {
     // Check if exists
     if (req.body.id) {
       // Update
+      // Prevent userId spoofing
+      const { userId, ...updateData } = req.body;
       const updated = await Budget.findOneAndUpdate(
         { _id: req.body.id, userId: req.user.id },
-        req.body,
+        updateData,
         { new: true }
       );
       return res.json({ ...updated.toObject(), id: updated._id });

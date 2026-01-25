@@ -590,3 +590,17 @@ export const analyzePortfolioPDF = async (pdfText: string): Promise<PortfolioAna
     return null;
   }
 };
+
+// 13. Generic Content Generation (New)
+export const generateContent = async (prompt: string): Promise<string> => {
+  try {
+    const response = await getAi().models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    return response.text || '';
+  } catch (error) {
+    console.error("Gemini Generate Content Error:", error);
+    return "Analysis unavailable at this time.";
+  }
+};

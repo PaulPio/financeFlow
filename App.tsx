@@ -26,6 +26,8 @@ import Upload from './pages/Upload';
 import Login from './pages/Login';
 import Goals from './pages/Goals';
 import Profile from './pages/Profile';
+import DetailedAnalysis from './pages/DetailedAnalysis';
+
 import Onboarding from './pages/Onboarding';
 import Investments from './pages/Investments';
 
@@ -325,6 +327,7 @@ export default function App() {
         <Route path="/upload" element={<Layout><Upload /></Layout>} />
         <Route path="/chat" element={<Layout><Chat /></Layout>} />
         <Route path="/profile" element={<Layout><Profile /></Layout>} />
+        <Route path="/analysis" element={<Layout><DetailedAnalysis /></Layout>} />
       </Routes>
     </HashRouter>
   );

@@ -30,7 +30,13 @@ try {
 const db = client.db('financeflow');
 
 const getBaseURL = () => {
-    if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+    let url = process.env.BETTER_AUTH_URL;
+    if (url) {
+        if (!url.endsWith('/api/auth')) {
+            url = `${url}/api/auth`;
+        }
+        return url;
+    }
     if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/auth`;
     return "http://localhost:3000/api/auth";
 };

@@ -159,19 +159,30 @@ export default function Upload() {
           // 1. Extract Text
           const text = await extractTextFromPdf(pdfFile);
           
+          if (!text || text.length < 50) {
+              throw new Error("PDF seems empty or unreadable.");
+          }
+
           setProgress('AI is analyzing bank statement...');
           // 2. Parse with Gemini
           const result = await parseBankStatement(text);
 
           setParsedData(result.transactions || []);
-          setStatementInfo(result.statementInfo);
+          
+          // Only set statement info if it looks valid
+          if (result.statementInfo && result.statementInfo.amountDue > 0) {
+              setStatementInfo(result.statementInfo);
+          } else {
+              setStatementInfo(null);
+          }
+
           setLoading(false);
           setProgress('Statement analyzed. Please review.');
 
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
           setLoading(false);
-          alert("Failed to parse PDF. Please ensure it is a valid text-based PDF statement.");
+          alert(`Error analyzing PDF: ${e.message || "Unknown error"}. Please ensure it is a text-based PDF.`);
       }
   };
 
@@ -314,16 +325,16 @@ export default function Upload() {
       }
 
       // Save Bill Info if detected from PDF
-      if (statementInfo && statementInfo.dueDate && statementInfo.amountDue) {
+      if (statementInfo && statementInfo.amountDue > 0) {
           await billService.add({
               userId: user.id,
               name: `${statementInfo.institution || 'Bank'} Statement`,
               amount: statementInfo.amountDue,
-              dueDate: statementInfo.dueDate,
+              dueDate: statementInfo.dueDate || new Date().toISOString().split('T')[0],
               isPaid: false,
               category: 'Credit Card'
           });
-          alert(`Imported ${parsedData.length} transactions AND set a bill reminder for ${statementInfo.dueDate}!`);
+          alert(`Imported ${parsedData.length} transactions AND set a bill reminder for ${statementInfo.dueDate || 'this month'}!`);
       } else {
           alert(`Imported ${parsedData.length} transactions successfully!`);
       }
@@ -534,13 +545,13 @@ export default function Upload() {
         )}
 
         {/* Statement Info Card */}
-        {statementInfo && (
+        {statementInfo && statementInfo.amountDue > 0 && (
             <div className="mt-8 bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="text-purple-600 mt-1" />
                 <div>
                     <h4 className="font-bold text-purple-900">Bill Detected</h4>
                     <p className="text-sm text-purple-800">
-                        We found a <strong>{statementInfo.institution}</strong> bill of <strong>${statementInfo.amountDue}</strong> due on <strong>{statementInfo.dueDate}</strong>.
+                        We found a <strong>{statementInfo.institution || 'Statement'}</strong> bill of <strong>${statementInfo.amountDue}</strong> due on <strong>{statementInfo.dueDate || 'Unknown Date'}</strong>.
                     </p>
                     <p className="text-xs text-purple-600 mt-1">This will be added to your bill reminders automatically upon import.</p>
                 </div>

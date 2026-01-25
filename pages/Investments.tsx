@@ -3,7 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { transactionService, authService, portfolioService } from '../services/localStorageService';
 import { generateInvestmentAdvice } from '../services/geminiService';
 import { Transaction, TransactionCategory, FinancialProfile, PortfolioAnalysis } from '../types';
-import { TrendingUp, DollarSign, Sparkles, Loader2, Shield, PieChart, ArrowRight } from 'lucide-react';
+import { TrendingUp, DollarSign, Sparkles, Loader2, Shield, PieChart, ArrowRight, Link } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Investments() {
@@ -63,7 +63,7 @@ export default function Investments() {
     fetchData();
   }, []);
 
-  // Fetch AI advice when investAmount stabilizes (debounced slightly via effect dependency)
+  // Fetch AI advice when investAmount stabilizes
   useEffect(() => {
     if (investAmount > 0 && !loading) {
         setLoadingAdvice(true);
@@ -79,19 +79,22 @@ export default function Investments() {
 
   const surplus = monthlyIncome - monthlySpent;
   const isSurplusPositive = surplus > 0;
+  
+  // Use portfolio total value if available, else 0
+  const initialPortfolioValue = portfolio ? portfolio.totalValue : 0;
 
   // Generate Chart Data
   const generateChartData = () => {
     const data = [];
-    let currentInvested = 0;
-    let currentCash = 0;
+    let currentInvested = initialPortfolioValue;
+    let currentCash = 0; // We keep cash separate to compare "Investing vs Saving in Cash"
     const monthlyRate = rateOfReturn / 100 / 12;
 
     for (let year = 0; year <= 10; year++) {
         data.push({
             year: `Year ${year}`,
             invested: Math.round(currentInvested),
-            cash: Math.round(currentCash)
+            cash: Math.round(currentCash + initialPortfolioValue) // Compare against just holding the portfolio value + adding cash
         });
 
         // Add 12 months of contributions + growth
@@ -104,6 +107,8 @@ export default function Investments() {
   };
 
   const chartData = generateChartData();
+  const projectedTotal = chartData[chartData.length-1].invested;
+  const cashTotal = chartData[chartData.length-1].cash;
 
   if (loading) return <div className="flex justify-center p-12">Loading investment data...</div>;
 
@@ -205,6 +210,12 @@ export default function Investments() {
                         <span className="text-gray-500">Monthly Expenses</span>
                         <span className="font-medium text-red-500">-${monthlySpent.toFixed(0)}</span>
                     </div>
+                    {initialPortfolioValue > 0 && (
+                        <div className="flex justify-between items-center text-sm bg-blue-50 p-2 rounded">
+                            <span className="text-blue-600 font-medium flex items-center gap-1"><Link size={14}/> Portfolio Linked</span>
+                            <span className="font-bold text-blue-700">${initialPortfolioValue.toLocaleString()}</span>
+                        </div>
+                    )}
                     <div className="pt-4 border-t border-gray-100">
                         <div className="flex justify-between items-center mb-2">
                             <span className="font-bold text-gray-700">Net Surplus</span>
@@ -255,8 +266,8 @@ export default function Investments() {
 
                 <div className="bg-emerald-900 text-white p-4 rounded-xl text-center">
                     <p className="text-sm opacity-80 mb-1">Projected Value in 10 Years</p>
-                    <p className="text-3xl font-bold">${chartData[chartData.length-1].invested.toLocaleString()}</p>
-                    <p className="text-xs text-emerald-300 mt-2">vs ${chartData[chartData.length-1].cash.toLocaleString()} in cash</p>
+                    <p className="text-3xl font-bold">${projectedTotal.toLocaleString()}</p>
+                    <p className="text-xs text-emerald-300 mt-2">vs ${cashTotal.toLocaleString()} if kept in cash</p>
                 </div>
             </div>
 
@@ -294,7 +305,7 @@ export default function Investments() {
                                 stroke="#94a3b8" 
                                 fillOpacity={1} 
                                 fill="url(#colorCash)" 
-                                name="Cash Savings"
+                                name="Cash + Savings"
                             />
                         </AreaChart>
                     </ResponsiveContainer>

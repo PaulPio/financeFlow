@@ -441,27 +441,17 @@ export const parseBankStatement = async (pdfText: string): Promise<{
         const prompt = `
             Analyze the following text extracted from a bank statement or credit card statement PDF.
             
-            Common Formats to Handle:
-            1. Standard Tables: Date, Description, Debit, Credit, Balance columns.
-            2. Robinhood/Brokerage style: "Account Activity" section with "CDIV" (Div), "Buy", "Sell".
-               - Treat "Credit", "CDIV" (Cash Div), "Interest" as Income (Positive).
-               - Treat "Debit", "Buy", "Withholdings" as Expenses (Absolute value).
-            
-            Tasks:
-            1. Extract all individual transactions. 
-               - Date: YYYY-MM-DD.
-               - Merchant: Clean name (e.g., "Apple" instead of "APPLE STORE #1234 CA").
-               - Amount: ABSOLUTE value number.
-               - Category: Auto-categorize (Dining, Groceries, Income, Shopping, Bills, Investments, Other).
-                 * Note: Mark "Dividend", "Interest", "Deposit" as 'Income'.
-            
-            2. Extract Statement Summary Information if available:
-               - "dueDate": Payment Due Date.
-               - "amountDue": New Balance or Amount Due.
-               - "institution": Bank Name.
-
             Input Text:
             "${pdfText.substring(0, 40000).replace(/"/g, "'")}" 
+
+            Tasks:
+            1. Extract all individual transactions (Date, Merchant, Amount, Category).
+            2. Extract Statement Summary Information (Bill/Payment Info) if available.
+               Look for keywords: "Payment Due", "Total Due", "New Balance", "Ending Balance".
+               
+            Return JSON with:
+            - transactions: [{date, merchant, amount, category}]
+            - statementInfo: { dueDate (YYYY-MM-DD or null), amountDue (number or 0), institution (string or null) }
         `;
 
         const response = await ai.models.generateContent({
@@ -487,9 +477,9 @@ export const parseBankStatement = async (pdfText: string): Promise<{
                         statementInfo: {
                             type: Type.OBJECT,
                             properties: {
-                                dueDate: { type: Type.STRING },
-                                amountDue: { type: Type.NUMBER },
-                                institution: { type: Type.STRING }
+                                dueDate: { type: Type.STRING, nullable: true },
+                                amountDue: { type: Type.NUMBER, nullable: true },
+                                institution: { type: Type.STRING, nullable: true }
                             }
                         }
                     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { transactionService, authService } from '../services/localStorageService';
 import { Transaction, TransactionCategory } from '../types';
-import { Trash2, Search, Filter } from 'lucide-react';
+import { Trash2, Search, Filter, Calendar as CalendarIcon } from 'lucide-react';
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -9,6 +9,8 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchTransactions = async () => {
@@ -47,8 +49,18 @@ export default function Transactions() {
       }
     }
 
+    if (startDate) {
+      result = result.filter(t => new Date(t.date) >= new Date(startDate));
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      result = result.filter(t => new Date(t.date) <= end);
+    }
+
     setFiltered(result);
-  }, [search, categoryFilter, typeFilter, transactions]);
+  }, [search, categoryFilter, typeFilter, transactions, startDate, endDate]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this transaction?')) {
@@ -61,18 +73,36 @@ export default function Transactions() {
     <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Transactions</h2>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Search merchant..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 placeholder-gray-400"
+              placeholder="Search..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900 placeholder-gray-400"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="relative">
+
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-gray-300 rounded-lg">
+            <CalendarIcon size={16} className="text-gray-400" />
+            <input
+              type="date"
+              className="bg-transparent border-none text-sm focus:ring-0 text-gray-700"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span className="text-gray-400">to</span>
+            <input
+              type="date"
+              className="bg-transparent border-none text-sm focus:ring-0 text-gray-700"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+
+          <div className="relative flex-1 sm:flex-none">
             <select
               className="px-4 py-2 border border-gray-300 rounded-lg appearance-none w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
               value={typeFilter}
@@ -83,7 +113,7 @@ export default function Transactions() {
               <option value="Expense">Expenses Only</option>
             </select>
           </div>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <select
               className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg appearance-none w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"

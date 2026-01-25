@@ -89,20 +89,33 @@ app.use("/api/auth", async (req, res) => {
   }
 });
 
+import Goal from './models/Goal.js';
+import Portfolio from './models/Portfolio.js';
+import Bill from './models/Bill.js';
+
 // Transactions
 app.get('/api/transactions', authenticateToken, async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user.id }).sort({ date: -1 });
+    const { startDate, endDate } = req.query;
+    let query = { userId: req.user.id };
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
+    }
+
+    const transactions = await Transaction.find(query).sort({ date: -1 });
     res.json(transactions.map(t => ({ ...t.toObject(), id: t._id })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ... and so on for others ...
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const transaction = new Transaction({ ...req.body, userId: req.user.id });
-    console.log('Saving transaction to MongoDB:', transaction);
     await transaction.save();
     res.json({ ...transaction.toObject(), id: transaction._id });
   } catch (err) {
@@ -129,19 +142,131 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Goals
+app.get('/api/goals', authenticateToken, async (req, res) => {
+  try {
+    const goals = await Goal.find({ userId: req.user.id }).sort({ deadline: 1 });
+    res.json(goals.map(g => ({ ...g.toObject(), id: g._id })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/goals', authenticateToken, async (req, res) => {
+  try {
+    const { id, ...data } = req.body;
+    if (id) {
+      const updated = await Goal.findOneAndUpdate(
+        { _id: id, userId: req.user.id },
+        data,
+        { new: true }
+      );
+      return res.json({ ...updated.toObject(), id: updated._id });
+    }
+    const goal = new Goal({ ...data, userId: req.user.id });
+    await goal.save();
+    res.json({ ...goal.toObject(), id: goal._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/goals/:id', authenticateToken, async (req, res) => {
+  try {
+    await Goal.deleteOne({ _id: req.params.id, userId: req.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Portfolio
+app.get('/api/portfolio', authenticateToken, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ userId: req.user.id });
+    if (!portfolio) return res.json(null);
+    res.json({ ...portfolio.toObject(), id: portfolio._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/portfolio', authenticateToken, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOneAndUpdate(
+      { userId: req.user.id },
+      req.body,
+      { upsert: true, new: true }
+    );
+    res.json({ ...portfolio.toObject(), id: portfolio._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bills
+app.get('/api/bills', authenticateToken, async (req, res) => {
+  try {
+    const bills = await Bill.find({ userId: req.user.id }).sort({ dueDate: 1 });
+    res.json(bills.map(b => ({ ...b.toObject(), id: b._id })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bills', authenticateToken, async (req, res) => {
+  try {
+    const { id, ...data } = req.body;
+    if (id) {
+      const updated = await Bill.findOneAndUpdate(
+        { _id: id, userId: req.user.id },
+        data,
+        { new: true }
+      );
+      return res.json({ ...updated.toObject(), id: updated._id });
+    }
+    const bill = new Bill({ ...data, userId: req.user.id });
+    await bill.save();
+    res.json({ ...bill.toObject(), id: bill._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/bills/:id/pay', authenticateToken, async (req, res) => {
+  try {
+    await Bill.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isPaid: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Budgets
 app.get('/api/budgets', authenticateToken, async (req, res) => {
   try {
     const budgets = await Budget.find({ userId: req.user.id });
 
     // Calculate spent for current month for each budget
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const { month, year } = req.query;
+    let startDate, endDate;
+
+    if (month && year) {
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59);
+    } else {
+      const now = new Date();
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
 
     const transactions = await Transaction.find({
       userId: req.user.id,
-      date: { $gte: startOfMonth },
-      category: { $ne: 'Income' } // Don't count income as spent
+      date: { $gte: startDate, $lte: endDate },
+      category: { $ne: 'Income' }
     });
 
     const budgetsWithSpent = budgets.map(budget => {

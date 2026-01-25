@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, L
 import { transactionService, budgetService, authService, billService, portfolioService } from '../services/localStorageService';
 import { generateInsights } from '../services/geminiService';
 import { Transaction, Budget, TransactionCategory, Bill } from '../types';
-import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb, TrendingUp, ArrowRight, CalendarClock, CheckCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb, TrendingUp, ArrowRight, CalendarClock, CheckCircle, Loader2, ChevronDown, Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
@@ -39,23 +39,48 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingInsights, setLoadingInsights] = useState(false);
 
+  // Month Selection State
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       const user = authService.getCurrentUser();
       if (user) {
-        const txs = await transactionService.getAll(user.id);
-        const bgs = await budgetService.getAll(user.id);
+        // Fetch specific month's transactions
+        const startDate = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
+        const endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+
+        // Update transactionService.getAll to support params? 
+        // For now, reuse it and filter client-side, OR I should have added a filter to the service.
+        // Let's add the filter to the service call in the next step, but here I'll fetch ALL and filter for simplicity or update the service.
+        const allTx = await transactionService.getAll(user.id);
+        const filteredTx = allTx.filter(t => {
+          const d = new Date(t.date);
+          return d.getMonth() === (selectedMonth - 1) && d.getFullYear() === selectedYear;
+        });
+
+        const bgs = await budgetService.getAll(user.id); // Budgets updated to support month in API
         const bls = await billService.getAll(user.id);
 
-        setTransactions(txs);
+        setTransactions(filteredTx);
         setBudgets(bgs);
         setBills(bls);
         setLoading(false);
 
         // Generate Insights after data load
-        if (txs.length > 0) {
+        if (filteredTx.length > 0) {
           setLoadingInsights(true);
-          generateInsights(txs, bgs)
+          generateInsights(filteredTx, bgs)
             .then(res => setInsights(res))
             .catch(err => console.error(err))
             .finally(() => setLoadingInsights(false));
@@ -65,7 +90,7 @@ export default function Dashboard() {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const handlePayBill = async (id: string) => {
     await billService.markAsPaid(id);
@@ -76,7 +101,12 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) return <div className="flex justify-center p-12">Loading dashboard...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-12 space-y-4">
+      <Loader2 className="animate-spin text-emerald-500" size={32} />
+      <p className="text-gray-500 font-medium text-sm">Synchronizing with database...</p>
+    </div>
+  );
 
   // Calculate totals
   const totalIncome = transactions
@@ -94,7 +124,8 @@ export default function Dashboard() {
   const expensesByCategory = transactions
     .filter(t => t.category !== TransactionCategory.Income)
     .reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount;
+      const cat = t.category as string;
+      acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
 
@@ -110,8 +141,31 @@ export default function Dashboard() {
     <div className="space-y-6 pb-20 md:pb-0">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Financial Overview</h2>
-          <p className="text-gray-500">Welcome back! Here's your financial health.</p>
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Financial Overview</h2>
+          <p className="text-gray-500 font-medium">Welcome back! Here's your financial health.</p>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer pl-2"
+          >
+            {months.map((m, i) => (
+              <option key={m} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <div className="h-4 w-px bg-gray-200 mx-1"></div>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer pr-2"
+          >
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="text-gray-400 mr-2" />
         </div>
       </div>
 

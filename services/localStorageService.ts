@@ -277,42 +277,94 @@ export const budgetService = {
 
 export const goalService = {
     getAll: async (userId: string): Promise<Goal[]> => {
-        const all = safeParse(STORAGE_KEYS.GOALS);
-        return all.filter((g: Goal) => g.userId === userId);
+        try {
+            const res = await fetch(`${API_URL}/goals`, { headers: getHeaders(), credentials: 'include' });
+            if (!res.ok) throw new Error('Fetch failed');
+            return await res.json();
+        } catch (e) {
+            const all = safeParse(STORAGE_KEYS.GOALS);
+            return all.filter((g: Goal) => g.userId === userId);
+        }
     },
     save: async (goal: Omit<Goal, 'id'> | Goal): Promise<Goal> => {
-        const all = safeParse(STORAGE_KEYS.GOALS);
-        const newGoal = { ...goal, id: 'id' in goal ? goal.id : Date.now().toString() };
-        const index = all.findIndex((g: any) => g.id === newGoal.id);
-        if (index !== -1) all[index] = newGoal; else all.push(newGoal);
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
-        return newGoal as Goal;
+        try {
+            const res = await fetch(`${API_URL}/goals`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(goal),
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Fetch failed');
+            return await res.json();
+        } catch (e) {
+            const all = safeParse(STORAGE_KEYS.GOALS);
+            const newGoal = { ...goal, id: 'id' in goal ? goal.id : Date.now().toString() };
+            const index = all.findIndex((g: any) => g.id === newGoal.id);
+            if (index !== -1) all[index] = newGoal; else all.push(newGoal);
+            localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
+            return newGoal as Goal;
+        }
     },
     delete: async (id: string): Promise<void> => {
-        let all = safeParse(STORAGE_KEYS.GOALS);
-        all = all.filter((g: Goal) => g.id !== id);
-        localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
+        try {
+            const res = await fetch(`${API_URL}/goals/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Fetch failed');
+        } catch (e) {
+            let all = safeParse(STORAGE_KEYS.GOALS);
+            all = all.filter((g: Goal) => g.id !== id);
+            localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
+        }
     }
 };
 
 export const billService = {
     getAll: async (userId: string): Promise<Bill[]> => {
-        const all = safeParse(STORAGE_KEYS.BILLS);
-        return all.filter((b: Bill) => b.userId === userId).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        try {
+            const res = await fetch(`${API_URL}/bills`, { headers: getHeaders(), credentials: 'include' });
+            if (!res.ok) throw new Error('Fetch failed');
+            return await res.json();
+        } catch (e) {
+            const all = safeParse(STORAGE_KEYS.BILLS);
+            return all.filter((b: Bill) => b.userId === userId).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        }
     },
     add: async (bill: Omit<Bill, 'id'>): Promise<Bill> => {
-        const all = safeParse(STORAGE_KEYS.BILLS);
-        const newBill = { ...bill, id: Date.now().toString() };
-        all.push(newBill);
-        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
-        return newBill;
+        try {
+            const res = await fetch(`${API_URL}/bills`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(bill),
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Fetch failed');
+            return await res.json();
+        } catch (e) {
+            const all = safeParse(STORAGE_KEYS.BILLS);
+            const newBill = { ...bill, id: Date.now().toString() };
+            all.push(newBill);
+            localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
+            return newBill;
+        }
     },
     markAsPaid: async (id: string): Promise<void> => {
-        const all = safeParse(STORAGE_KEYS.BILLS);
-        const index = all.findIndex((b: any) => b.id === id);
-        if (index !== -1) {
-            all[index].isPaid = true;
-            localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
+        try {
+            const res = await fetch(`${API_URL}/bills/${id}/pay`, {
+                method: 'POST',
+                headers: getHeaders(),
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Fetch failed');
+        } catch (e) {
+            const all = safeParse(STORAGE_KEYS.BILLS);
+            const index = all.findIndex((b: any) => b.id === id);
+            if (index !== -1) {
+                all[index].isPaid = true;
+                localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
+            }
         }
     }
 };
@@ -345,13 +397,29 @@ export const notificationService = {
 
 export const portfolioService = {
     get: async (userId: string): Promise<PortfolioAnalysis | null> => {
-        const data = localStorage.getItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`);
-        if (!data || data === 'undefined') return null;
         try {
-            return JSON.parse(data);
-        } catch (e) { return null; }
+            const res = await fetch(`${API_URL}/portfolio`, { headers: getHeaders(), credentials: 'include' });
+            if (!res.ok) throw new Error('Fetch failed');
+            return await res.json();
+        } catch (e) {
+            const data = localStorage.getItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`);
+            if (!data || data === 'undefined') return null;
+            try {
+                return JSON.parse(data);
+            } catch (e) { return null; }
+        }
     },
     save: async (userId: string, data: PortfolioAnalysis): Promise<void> => {
-        localStorage.setItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`, JSON.stringify(data));
+        try {
+            const res = await fetch(`${API_URL}/portfolio`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Fetch failed');
+        } catch (e) {
+            localStorage.setItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`, JSON.stringify(data));
+        }
     }
 };

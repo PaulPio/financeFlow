@@ -20,7 +20,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/financ
 // Append database name if not present in URI, though usually strictly URI is preferred. 
 // Assuming URI connects to cluster, we select DB.
 mongoose.connect(MONGODB_URI, { dbName: 'financeflow' })
-  .then(() => console.log('Connected to MongoDB: financeflow'))
+  .then(() => console.log('Successfully connected to MongoDB: financeflow'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-change-me';
@@ -78,7 +78,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user.id }).sort({ date: -1 });
-    res.json(transactions.map(t => ({...t.toObject(), id: t._id})));
+    res.json(transactions.map(t => ({ ...t.toObject(), id: t._id })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -87,6 +87,7 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   try {
     const transaction = new Transaction({ ...req.body, userId: req.user.id });
+    console.log('Saving transaction to MongoDB:', transaction);
     await transaction.save();
     res.json({ ...transaction.toObject(), id: transaction._id });
   } catch (err) {
@@ -117,12 +118,12 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
 app.get('/api/budgets', authenticateToken, async (req, res) => {
   try {
     const budgets = await Budget.find({ userId: req.user.id });
-    
+
     // Calculate spent for current month for each budget
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    const transactions = await Transaction.find({ 
+
+    const transactions = await Transaction.find({
       userId: req.user.id,
       date: { $gte: startOfMonth },
       category: { $ne: 'Income' } // Don't count income as spent
@@ -132,7 +133,7 @@ app.get('/api/budgets', authenticateToken, async (req, res) => {
       const spent = transactions
         .filter(t => t.category === budget.category)
         .reduce((sum, t) => sum + t.amount, 0);
-        
+
       return {
         ...budget.toObject(),
         id: budget._id,
@@ -150,13 +151,13 @@ app.post('/api/budgets', authenticateToken, async (req, res) => {
   try {
     // Check if exists
     if (req.body.id) {
-        // Update
-        const updated = await Budget.findOneAndUpdate(
-            { _id: req.body.id, userId: req.user.id },
-            req.body,
-            { new: true }
-        );
-        return res.json({ ...updated.toObject(), id: updated._id });
+      // Update
+      const updated = await Budget.findOneAndUpdate(
+        { _id: req.body.id, userId: req.user.id },
+        req.body,
+        { new: true }
+      );
+      return res.json({ ...updated.toObject(), id: updated._id });
     }
 
     const exists = await Budget.findOne({ userId: req.user.id, category: req.body.category });

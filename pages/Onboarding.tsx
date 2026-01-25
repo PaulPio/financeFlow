@@ -5,11 +5,12 @@ import { FinancialProfile } from '../types';
 import { ArrowRight, Check, DollarSign, Briefcase, Target, ShieldAlert, Sparkles } from 'lucide-react';
 
 const steps = [
-    { id: 1, title: 'Welcome' },
-    { id: 2, title: 'Income' },
-    { id: 3, title: 'Occupation' },
-    { id: 4, title: 'Focus' },
-    { id: 5, title: 'Risk' },
+  { id: 1, title: 'Welcome' },
+  { id: 2, title: 'Age' },
+  { id: 3, title: 'Income' },
+  { id: 4, title: 'Occupation' },
+  { id: 5, title: 'Focus' },
+  { id: 6, title: 'Risk' },
 ];
 
 export default function Onboarding() {
@@ -22,25 +23,32 @@ export default function Onboarding() {
     savingsGoal: '',
     riskTolerance: 'Medium',
     financialFocus: 'Budgeting',
-    occupation: ''
+    occupation: '',
+    age: undefined
   });
 
   // Validation function
   const canProceed = () => {
-      setError('');
-      if (currentStep === 2) {
-          if (!profile.monthlyIncome || profile.monthlyIncome <= 0) {
-              setError("Please enter a valid monthly income.");
-              return false;
-          }
+    setError('');
+    if (currentStep === 2) {
+      if (!profile.age || profile.age <= 0 || profile.age > 120) {
+        setError("Please enter a valid age.");
+        return false;
       }
-      if (currentStep === 3) {
-          if (!profile.occupation || !profile.occupation.trim()) {
-              setError("Please enter your occupation.");
-              return false;
-          }
+    }
+    if (currentStep === 3) {
+      if (!profile.monthlyIncome || profile.monthlyIncome <= 0) {
+        setError("Please enter a valid monthly income.");
+        return false;
       }
-      return true;
+    }
+    if (currentStep === 4) {
+      if (!profile.occupation || !profile.occupation.trim()) {
+        setError("Please enter your occupation.");
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleNext = () => {
@@ -59,7 +67,7 @@ export default function Onboarding() {
       financialProfile: profile,
       hasCompletedOnboarding: true
     });
-    
+
     // Simple navigation is enough since Layout checks authService.getCurrentUser() on render
     // We navigate to root, which will render Dashboard via Layout
     navigate('/');
@@ -73,7 +81,7 @@ export default function Onboarding() {
 
   // Render content based on step
   const renderContent = () => {
-    switch(currentStep) {
+    switch (currentStep) {
       case 1:
         return (
           <div className="text-center space-y-6">
@@ -89,113 +97,134 @@ export default function Onboarding() {
       case 2:
         return (
           <div className="space-y-6">
-             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <DollarSign className="text-emerald-500" /> 
-                Income & Currency
-             </h2>
-             <p className="text-gray-600">What is your approximate monthly take-home income?</p>
-             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Amount</label>
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                    <input 
-                        type="number" 
-                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-lg bg-white text-gray-900 placeholder-gray-400"
-                        placeholder="4000"
-                        value={profile.monthlyIncome || ''}
-                        onChange={(e) => updateProfile('monthlyIncome', Number(e.target.value))}
-                        onKeyDown={(e) => e.key === 'Enter' && handleNext()}
-                        autoFocus
-                    />
-                </div>
-             </div>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Target className="text-emerald-500" />
+              Age
+            </h2>
+            <p className="text-gray-600">How old are you? This helps with long-term planning.</p>
+            <div>
+              <input
+                type="number"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-lg bg-white text-gray-900 placeholder-gray-400"
+                placeholder="e.g. 25"
+                value={profile.age || ''}
+                onChange={(e) => updateProfile('age', Number(e.target.value))}
+                onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+                autoFocus
+              />
+            </div>
           </div>
         );
       case 3:
         return (
           <div className="space-y-6">
-             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Briefcase className="text-emerald-500" />
-                Occupation
-             </h2>
-             <p className="text-gray-600">What do you do for a living?</p>
-             <div>
-                <input 
-                    type="text" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-lg bg-white text-gray-900 placeholder-gray-400"
-                    placeholder="e.g. Software Engineer, Teacher, Student"
-                    value={profile.occupation}
-                    onChange={(e) => updateProfile('occupation', e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleNext()}
-                    autoFocus
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <DollarSign className="text-emerald-500" />
+              Income & Currency
+            </h2>
+            <p className="text-gray-600">What is your approximate monthly take-home income?</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-lg bg-white text-gray-900 placeholder-gray-400"
+                  placeholder="4000"
+                  value={profile.monthlyIncome || ''}
+                  onChange={(e) => updateProfile('monthlyIncome', Number(e.target.value))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+                  autoFocus
                 />
-             </div>
+              </div>
+            </div>
           </div>
         );
       case 4:
         return (
           <div className="space-y-6">
-             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Target className="text-emerald-500" />
-                Goals & Focus
-             </h2>
-             
-             <div>
-                <p className="text-gray-600 mb-3">What is your primary financial focus right now?</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {['Budgeting', 'Debt Repayment', 'Savings', 'Investing'].map(opt => (
-                        <button
-                            key={opt}
-                            onClick={() => updateProfile('financialFocus', opt)}
-                            className={`p-4 rounded-xl border-2 text-left transition-all ${profile.financialFocus === opt ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50'}`}
-                        >
-                            <span className="font-medium">{opt}</span>
-                        </button>
-                    ))}
-                </div>
-             </div>
-
-             <div>
-                <p className="text-gray-600 mb-2">Do you have a specific savings goal?</p>
-                <input 
-                    type="text" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 placeholder-gray-400"
-                    placeholder="e.g. Buy a house in 5 years"
-                    value={profile.savingsGoal}
-                    onChange={(e) => updateProfile('savingsGoal', e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleNext()}
-                />
-             </div>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Briefcase className="text-emerald-500" />
+              Occupation
+            </h2>
+            <p className="text-gray-600">What do you do for a living?</p>
+            <div>
+              <input
+                type="text"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-lg bg-white text-gray-900 placeholder-gray-400"
+                placeholder="e.g. Software Engineer, Teacher, Student"
+                value={profile.occupation}
+                onChange={(e) => updateProfile('occupation', e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+                autoFocus
+              />
+            </div>
           </div>
         );
       case 5:
         return (
-           <div className="space-y-6">
-             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <ShieldAlert className="text-emerald-500" />
-                Risk Tolerance
-             </h2>
-             <p className="text-gray-600">When it comes to your finances, how would you describe your risk tolerance?</p>
-             
-             <div className="space-y-3">
-                {[
-                    { val: 'Low', label: 'Conservative', desc: 'I prefer safety and stability over high returns.' },
-                    { val: 'Medium', label: 'Moderate', desc: 'I want a balance of growth and safety.' },
-                    { val: 'High', label: 'Aggressive', desc: 'I am willing to take risks for higher potential returns.' }
-                ].map((opt) => (
-                    <button
-                        key={opt.val}
-                        onClick={() => updateProfile('riskTolerance', opt.val)}
-                        className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${profile.riskTolerance === opt.val ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}
-                    >
-                        <div>
-                            <p className={`font-bold ${profile.riskTolerance === opt.val ? 'text-emerald-900' : 'text-gray-900'}`}>{opt.label}</p>
-                            <p className="text-sm text-gray-500">{opt.desc}</p>
-                        </div>
-                        {profile.riskTolerance === opt.val && <Check className="text-emerald-600" />}
-                    </button>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Target className="text-emerald-500" />
+              Goals & Focus
+            </h2>
+
+            <div>
+              <p className="text-gray-600 mb-3">What is your primary financial focus right now?</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {['Budgeting', 'Debt Repayment', 'Savings', 'Investing'].map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => updateProfile('financialFocus', opt)}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${profile.financialFocus === opt ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : 'border-gray-200 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    <span className="font-medium">{opt}</span>
+                  </button>
                 ))}
-             </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-gray-600 mb-2">Do you have a specific savings goal?</p>
+              <input
+                type="text"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 placeholder-gray-400"
+                placeholder="e.g. Buy a house in 5 years"
+                value={profile.savingsGoal}
+                onChange={(e) => updateProfile('savingsGoal', e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+              />
+            </div>
+          </div>
+        );
+      case 6:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <ShieldAlert className="text-emerald-500" />
+              Risk Tolerance
+            </h2>
+            <p className="text-gray-600">When it comes to your finances, how would you describe your risk tolerance?</p>
+
+            <div className="space-y-3">
+              {[
+                { val: 'Low', label: 'Conservative', desc: 'I prefer safety and stability over high returns.' },
+                { val: 'Medium', label: 'Moderate', desc: 'I want a balance of growth and safety.' },
+                { val: 'High', label: 'Aggressive', desc: 'I am willing to take risks for higher potential returns.' }
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  onClick={() => updateProfile('riskTolerance', opt.val)}
+                  className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${profile.riskTolerance === opt.val ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}
+                >
+                  <div>
+                    <p className={`font-bold ${profile.riskTolerance === opt.val ? 'text-emerald-900' : 'text-gray-900'}`}>{opt.label}</p>
+                    <p className="text-sm text-gray-500">{opt.desc}</p>
+                  </div>
+                  {profile.riskTolerance === opt.val && <Check className="text-emerald-600" />}
+                </button>
+              ))}
+            </div>
           </div>
         );
       default:
@@ -205,44 +234,44 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        {/* Progress Bar */}
-        <div className="w-full max-w-lg mb-8">
-             <div className="flex justify-between mb-2 px-1">
-                 {steps.map(s => (
-                     <div key={s.id} className={`w-full h-1.5 rounded-full mx-1 transition-colors ${s.id <= currentStep ? 'bg-emerald-500' : 'bg-gray-200'}`} />
-                 ))}
-             </div>
+      {/* Progress Bar */}
+      <div className="w-full max-w-lg mb-8">
+        <div className="flex justify-between mb-2 px-1">
+          {steps.map(s => (
+            <div key={s.id} className={`w-full h-1.5 rounded-full mx-1 transition-colors ${s.id <= currentStep ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8 min-h-[400px] flex flex-col transition-all">
+        <div className="flex-1">
+          {renderContent()}
+          {error && (
+            <p className="text-red-500 text-sm mt-4 text-center bg-red-50 p-2 rounded-lg">{error}</p>
+          )}
         </div>
 
-        <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-8 min-h-[400px] flex flex-col transition-all">
-            <div className="flex-1">
-                {renderContent()}
-                {error && (
-                    <p className="text-red-500 text-sm mt-4 text-center bg-red-50 p-2 rounded-lg">{error}</p>
-                )}
-            </div>
+        <div className="pt-8 mt-4 border-t border-gray-100 flex justify-between items-center">
+          {currentStep > 1 ? (
+            <button
+              onClick={() => setCurrentStep(c => c - 1)}
+              className="text-gray-500 hover:text-gray-800 font-medium px-4 py-2"
+            >
+              Back
+            </button>
+          ) : (
+            <div></div> // Spacer
+          )}
 
-            <div className="pt-8 mt-4 border-t border-gray-100 flex justify-between items-center">
-                {currentStep > 1 ? (
-                    <button 
-                        onClick={() => setCurrentStep(c => c - 1)}
-                        className="text-gray-500 hover:text-gray-800 font-medium px-4 py-2"
-                    >
-                        Back
-                    </button>
-                ) : (
-                    <div></div> // Spacer
-                )}
-                
-                <button 
-                    onClick={handleNext}
-                    className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2"
-                >
-                    {currentStep === steps.length ? 'Finish Setup' : 'Continue'}
-                    <ArrowRight size={18} />
-                </button>
-            </div>
+          <button
+            onClick={handleNext}
+            className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2"
+          >
+            {currentStep === steps.length ? 'Finish Setup' : 'Continue'}
+            <ArrowRight size={18} />
+          </button>
         </div>
+      </div>
     </div>
   );
 }

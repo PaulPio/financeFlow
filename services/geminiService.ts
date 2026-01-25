@@ -410,7 +410,7 @@ export const parseEmailReceipt = async (emailBody: string): Promise<any> => {
       1. Merchant Name (e.g. Amazon, Uber, Apple)
       2. Date (ISO Format YYYY-MM-DD). If year is missing, assume current year.
       3. Total Amount (Number only)
-      4. Suggested Category (one of: Dining, Groceries, Transportation, Entertainment, Shopping, Bills, Healthcare, Other)
+      4. Suggested Category (one of: Dining, Groceries, Transportation, Entertainment, Shopping, Bills, Healthcare, Housing, Utilities, Insurance, Loans, Education, Travel, Other)
       5. Description (Short summary, e.g. "Amazon Order #123")
 
       Return JSON only: { "merchant": string, "date": string, "amount": number, "category": string, "description": string }

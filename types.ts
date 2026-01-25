@@ -6,6 +6,7 @@ export interface FinancialProfile {
   riskTolerance: 'Low' | 'Medium' | 'High';
   financialFocus: 'Debt Repayment' | 'Savings' | 'Investing' | 'Budgeting';
   occupation?: string;
+  age?: number;
 }
 
 export interface User {
@@ -22,6 +23,13 @@ export enum TransactionCategory {
   Transportation = 'Transportation',
   Entertainment = 'Entertainment',
   Shopping = 'Shopping',
+  Utilites = 'Utilities',
+  Housing = 'Housing',
+  Insurance = 'Insurance',
+  Health = 'Health',
+  Loans = 'Loans',
+  Education = 'Education',
+  Travel = 'Travel',
   Bills = 'Bills',
   Income = 'Income',
   Healthcare = 'Healthcare',

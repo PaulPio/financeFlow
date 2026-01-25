@@ -43,6 +43,10 @@ const seedDemoData = (userId: string) => {
             { id: '1', userId, category: 'Groceries', limit: 500, period: 'monthly' },
             { id: '2', userId, category: 'Dining', limit: 200, period: 'monthly' },
             { id: '3', userId, category: 'Entertainment', limit: 100, period: 'monthly' },
+            { id: '4', userId, category: 'Utilities', limit: 150, period: 'monthly' },
+            { id: '5', userId, category: 'Housing', limit: 1200, period: 'monthly' },
+            { id: '6', userId, category: 'Insurance', limit: 300, period: 'monthly' },
+            { id: '7', userId, category: 'Loans', limit: 400, period: 'monthly' },
         ];
         localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(demoBudgets));
 
@@ -162,6 +166,7 @@ export const transactionService = {
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {
+            console.warn('Transaction save failed on backend, falling back to local storage:', e);
             // Fallback
             const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
             const newTx = { ...transaction, id: Date.now().toString() };

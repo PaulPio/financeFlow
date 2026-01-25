@@ -3,7 +3,18 @@ import { TransactionCategory, Transaction, Budget, Goal, FinancialProfile, Portf
 
 // Initialize Gemini
 // Note: In a real production app, API keys should not be exposed in client-side code.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY || '' });
+let ai: GoogleGenAI;
+
+const getAi = () => {
+  if (!ai) {
+    const apiKey = import.meta.env.VITE_API_KEY || '';
+    if (!apiKey) {
+      console.warn("Gemini API Key is missing! AI features will not work.");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 // 1. Categorize Transaction (Fast - Flash Lite)
 export const categorizeTransaction = async (merchant: string, amount: number, description?: string): Promise<string> => {
@@ -20,7 +31,7 @@ export const categorizeTransaction = async (merchant: string, amount: number, de
       Return ONLY the category name. Default to 'Other' if unclear.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-flash-lite-latest',
       contents: prompt,
     });
@@ -83,7 +94,7 @@ export const chatWithAdvisor = async (
         `;
     }
 
-    const chat = ai.chats.create({
+    const chat = getAi().chats.create({
       model: 'gemini-3-pro-preview',
       config: {
         systemInstruction: systemInstruction,
@@ -105,7 +116,7 @@ export const chatWithAdvisor = async (
 // 3. Search for Financial News/Info (Grounding - Flash + Search)
 export const searchFinancialTopic = async (query: string): Promise<{ text: string, sources: any[] }> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: query,
       config: {
@@ -127,7 +138,7 @@ export const searchFinancialTopic = async (query: string): Promise<{ text: strin
 export const analyzeReceipt = async (base64Image: string): Promise<any> => {
   try {
     // Schema for structured receipt data
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
@@ -195,7 +206,7 @@ export const mapCsvHeaders = async (headers: string[]): Promise<{
       Return the integer index (0-based) for each field. Use -1 if a field is not found.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -248,7 +259,7 @@ export const generateInsights = async (transactions: Transaction[], budgets: Bud
       Return ONLY a JSON array of strings. Example: ["You spent 20% less on dining this week!", "Consider lowering your entertainment budget."]
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -301,7 +312,7 @@ export const generateGoalStrategy = async (goal: Goal, transactions: Transaction
             Keep the response concise (under 100 words).
         `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
     });
@@ -337,7 +348,7 @@ export const parseGoalInput = async (input: string): Promise<{
             Return JSON.
         `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview', // Good balance of speed/reasoning for extraction
       contents: prompt,
       config: {
@@ -387,7 +398,7 @@ export const generateInvestmentAdvice = async (surplus: number, profile?: Financ
             Mention the power of compounding.
         `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
@@ -417,7 +428,7 @@ export const parseEmailReceipt = async (emailBody: string): Promise<any> => {
       If it is clearly not a receipt, invoice, or order confirmation, return null.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: { responseMimeType: 'application/json' }
@@ -461,7 +472,7 @@ export const parseBankStatement = async (pdfText: string): Promise<{
             - Ensure amount is always positive number.
         `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
@@ -534,7 +545,7 @@ export const analyzePortfolioPDF = async (pdfText: string): Promise<PortfolioAna
          - Assess Risk (Low, Medium, High).
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {

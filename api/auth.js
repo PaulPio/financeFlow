@@ -9,10 +9,24 @@ dotenv.config();
 
 
 
+if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI is missing in environment variables");
+}
+if (!process.env.BETTER_AUTH_SECRET) {
+    throw new Error("BETTER_AUTH_SECRET is missing in environment variables");
+}
+
 const client = new MongoClient(process.env.MONGODB_URI);
 
-// Top level await is fine in ESM (this file uses imports)
-await client.connect();
+try {
+    // Top level await is fine in ESM (this file uses imports)
+    await client.connect();
+    console.log("Connected to MongoDB for Better Auth");
+} catch (e) {
+    console.error("Failed to connect to MongoDB in auth.js", e);
+    throw e;
+}
+
 const db = client.db('financeflow');
 
 const getBaseURL = () => {

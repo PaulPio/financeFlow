@@ -7,13 +7,14 @@ let ai: GoogleGenAI;
 
 const getAi = () => {
   if (!ai) {
-    // Try multiple possible locations for the API Key
-    const apiKey = import.meta.env.VITE_API_KEY || (window as any).process?.env?.GEMINI_API_KEY || '';
+    // Vite uses literal string replacement for these variables.
+    // We try multiple standard names to ensure the key is picked up.
+    // @ts-ignore - process.env might not be defined in Browser but Vite's 'define' handles it
+    const apiKey = import.meta.env.VITE_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
 
     if (!apiKey) {
-      console.warn("Gemini API Key is missing! AI features will not work. Please check your .env file and restart the dev server.");
-    } else {
-      console.log("Gemini AI Initialized with Key starting with:", apiKey.substring(0, 5) + "...");
+      console.error("CRITICAL: Gemini API Key is missing! AI features will not work.");
+      console.info("Please check if VITE_API_KEY is set in your .env file and restart the dev server.");
     }
 
     ai = new GoogleGenAI({ apiKey });

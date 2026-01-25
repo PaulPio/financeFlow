@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  console.log(`[Vite Config] Loading env for mode: ${mode}. Found VITE_API_KEY: ${env.VITE_API_KEY ? 'Yes (starts with ' + env.VITE_API_KEY.substring(0, 4) + ')' : 'No'}`);
   return {
     server: {
       port: 3000,

@@ -72,10 +72,11 @@ import { auth } from "./auth.js";
 // Auth
 // Auth
 // Auth
-app.all(/^\/api\/auth\/.*/, async (req, res) => {
+app.all("/api/auth/*", async (req, res) => {
   try {
     return await toNodeHandler(auth)(req, res);
   } catch (error) {
+    console.error("Auth Error:", error);
     res.status(500).json({ message: "Auth Error", error: error.message });
   }
 });

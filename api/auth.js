@@ -18,6 +18,7 @@ const db = client.db('financeflow');
 export const auth = betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
+    baseURL: process.env.BETTER_AUTH_URL,
     emailAndPassword: {
         enabled: true
     },

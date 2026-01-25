@@ -13,8 +13,6 @@ try {
     } else {
         console.warn("[PDF Service] GlobalWorkerOptions not found. Worker might not be configured.");
     }
-    console.warn("[PDF Service] GlobalWorkerOptions not found. Worker might not be configured.");
-}
 } catch (e) {
     console.error("[PDF Service] Failed to configure PDF worker:", e);
 }

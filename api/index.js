@@ -77,13 +77,9 @@ app.options("/api/auth/*", (req, res) => {
 });
 
 // Auth
-app.all("/api/auth/*", async (req, res) => {
-  try {
-    return await toNodeHandler(auth)(req, res);
-  } catch (error) {
-    console.error("Auth Error:", error);
-    res.status(500).json({ message: "Auth Error", error: error.message });
-  }
+// Auth handler
+app.all("/api/auth/*", (req, res) => {
+  return toNodeHandler(auth)(req, res);
 });
 
 // Manual Auth routes removed in favor of Better Auth

@@ -15,10 +15,16 @@ const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 const db = client.db('financeflow');
 
+const getBaseURL = () => {
+    if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/auth`;
+    return "http://localhost:3000/api/auth";
+};
+
 export const auth = betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: getBaseURL(),
     emailAndPassword: {
         enabled: true
     },

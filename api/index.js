@@ -71,6 +71,11 @@ import { auth } from "./auth.js";
 // Auth
 // Auth
 // Auth
+// Explicitly handle OPTIONS for auth routes to ensure CORS headers are sent
+app.options("/api/auth/*", (req, res) => {
+  res.sendStatus(200);
+});
+
 // Auth
 app.all("/api/auth/*", async (req, res) => {
   try {

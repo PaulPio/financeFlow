@@ -37,6 +37,8 @@ const db = client.db('financeflow');
 const getBaseURL = () => {
     let url = process.env.BETTER_AUTH_URL;
     if (url) {
+        // Remove trailing slash if present to avoid double slashes
+        url = url.replace(/\/$/, "");
         if (!url.endsWith('/api/auth')) {
             url = `${url}/api/auth`;
         }
@@ -44,7 +46,7 @@ const getBaseURL = () => {
         return url;
     }
     if (process.env.VERCEL_URL) {
-        const vUrl = `https://${process.env.VERCEL_URL}/api/auth`;
+        const vUrl = `https://${process.env.VERCEL_URL.replace(/\/$/, "")}/api/auth`;
         console.log("[Auth] Detected VERCEL_URL:", vUrl);
         return vUrl;
     }

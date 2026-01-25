@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { transactionService, authService } from '../services/localStorageService';
 import { authClient } from '../lib/auth-client';
 import { Transaction, TransactionCategory } from '../types';
-import { Trash2, Search, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { Trash2, Search, Filter, Calendar as CalendarIcon, Plus, X } from 'lucide-react';
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -64,6 +64,47 @@ export default function Transactions() {
     setFiltered(result);
   }, [search, categoryFilter, typeFilter, transactions, startDate, endDate]);
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newTrans, setNewTrans] = useState({
+    merchant: '',
+    amount: '',
+    category: TransactionCategory.Dining,
+    date: new Date().toISOString().split('T')[0],
+    description: ''
+  });
+
+  // ... fetchTransactions effect ...
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = authService.getCurrentUser();
+    if (!user) return;
+
+    if (!newTrans.merchant || !newTrans.amount) {
+      alert("Please fill in merchant and amount");
+      return;
+    }
+
+    await transactionService.add({
+      userId: user.id,
+      date: newTrans.date,
+      merchant: newTrans.merchant,
+      amount: parseFloat(newTrans.amount),
+      category: newTrans.category,
+      description: newTrans.description
+    });
+
+    setIsAddModalOpen(false);
+    setNewTrans({
+      merchant: '',
+      amount: '',
+      category: TransactionCategory.Dining,
+      date: new Date().toISOString().split('T')[0],
+      description: ''
+    });
+    fetchTransactions();
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this transaction?')) {
       await transactionService.delete(id);
@@ -74,7 +115,16 @@ export default function Transactions() {
   return (
     <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Transactions</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-800">Transactions</h2>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors shadow-sm"
+            title="Add Transaction"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -181,6 +231,86 @@ export default function Transactions() {
           </table>
         </div>
       </div>
+
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Add Transaction</h3>
+
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900"
+                  value={newTrans.date}
+                  onChange={e => setNewTrans({ ...newTrans, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Merchant</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Starbucks"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900"
+                  value={newTrans.merchant}
+                  onChange={e => setNewTrans({ ...newTrans, merchant: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                <input
+                  type="number"
+                  required
+                  step="0.01"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900"
+                  value={newTrans.amount}
+                  onChange={e => setNewTrans({ ...newTrans, amount: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900"
+                  value={newTrans.category}
+                  onChange={e => setNewTrans({ ...newTrans, category: e.target.value as any })}
+                >
+                  {Object.values(TransactionCategory).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900"
+                  value={newTrans.description}
+                  onChange={e => setNewTrans({ ...newTrans, description: e.target.value })}
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
+                >
+                  Save Transaction
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

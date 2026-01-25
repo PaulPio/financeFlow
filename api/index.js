@@ -68,20 +68,24 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth.js";
 
 // Auth
-// Auth
-// Auth
-// Auth
+
 // Explicitly handle OPTIONS for auth routes to ensure CORS headers are sent
-app.options("/api/auth/*", (req, res) => {
+// Use a path-to-regexp compatible catch-all param ":path(.*)"
+app.options("/api/auth/:path(.*)", (req, res) => {
   res.sendStatus(200);
 });
 
 // Auth
 // Auth handler
-app.all("/api/auth/*", (req, res) => {
-  return toNodeHandler(auth)(req, res);
+// Route all auth requests through Better Auth node handler using a catch-all param
+app.all("/api/auth/:path(.*)", async (req, res) => {
+  try {
+    return await toNodeHandler(auth)(req, res);
+  } catch (error) {
+    console.error("Auth Error:", error);
+    res.status(500).json({ message: "Auth Error", error: error.message });
+  }
 });
-
 // Manual Auth routes removed in favor of Better Auth
 // logic handled by app.all("/api/auth/*")
 

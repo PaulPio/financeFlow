@@ -69,22 +69,23 @@ import { auth } from "./auth.js";
 
 // Auth
 
-// Use app.use to prefix-match /api/auth and all its subpaths.
-// This avoids path-to-regexp wildcard/param parsing issues that
-// cause import-time crashes in some router versions.
-app.use("/api/auth", async (req, res, next) => {
-  // Ensure CORS preflight is handled quickly
+// Auth prefix handler
+app.use("/api/auth", async (req, res) => {
+  // Log all incoming auth requests for debugging
+  console.log(`[Auth Request] ${req.method} ${req.url}`);
+
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    return res.status(200).end();
   }
 
   try {
-    // Delegate the request to Better Auth's node handler
     return await toNodeHandler(auth)(req, res);
   } catch (error) {
-    console.error("Auth Error:", error);
-    // Send a controlled JSON error rather than crashing.
-    res.status(500).json({ message: "Auth Error", error: error?.message || String(error) });
+    console.error("[Auth Handler Error]:", error);
+    res.status(500).json({
+      message: "Authentication error",
+      error: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
+    });
   }
 });
 

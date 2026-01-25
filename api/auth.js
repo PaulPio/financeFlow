@@ -40,16 +40,29 @@ const getBaseURL = () => {
         if (!url.endsWith('/api/auth')) {
             url = `${url}/api/auth`;
         }
+        console.log("[Auth] Using BETTER_AUTH_URL:", url);
         return url;
     }
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api/auth`;
+    if (process.env.VERCEL_URL) {
+        const vUrl = `https://${process.env.VERCEL_URL}/api/auth`;
+        console.log("[Auth] Detected VERCEL_URL:", vUrl);
+        return vUrl;
+    }
+    console.log("[Auth] Defaulting to localhost baseURL");
     return "http://localhost:3000/api/auth";
 };
+
+const finalBaseURL = getBaseURL();
+console.log("[Auth] Initialization Summary:", {
+    hasSecret: !!process.env.BETTER_AUTH_SECRET,
+    baseURL: finalBaseURL,
+    googleConfigured: !!(process.env.VITE_GOOGLE_CLIENT_ID && process.env.VITE_GOOGLE_CLIENT_SECRET)
+});
 
 export const auth = betterAuth({
     database: mongodbAdapter(db),
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: getBaseURL(),
+    baseURL: finalBaseURL,
     emailAndPassword: {
         enabled: true
     },

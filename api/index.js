@@ -69,25 +69,24 @@ import { auth } from "./auth.js";
 
 // Auth
 
-// Explicitly handle OPTIONS for auth routes to ensure CORS headers are sent
-// Use a path-to-regexp compatible catch-all param ":path(.*)"
-app.options("/api/auth/:path(.*)", (req, res) => {
-  res.sendStatus(200);
-});
+// Use app.use to prefix-match /api/auth and all its subpaths.
+// This avoids path-to-regexp wildcard/param parsing issues that
+// cause import-time crashes in some router versions.
+app.use("/api/auth", async (req, res, next) => {
+  // Ensure CORS preflight is handled quickly
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
 
-// Auth
-// Auth handler
-// Route all auth requests through Better Auth node handler using a catch-all param
-app.all("/api/auth/:path(.*)", async (req, res) => {
   try {
+    // Delegate the request to Better Auth's node handler
     return await toNodeHandler(auth)(req, res);
   } catch (error) {
     console.error("Auth Error:", error);
-    res.status(500).json({ message: "Auth Error", error: error.message });
+    // Send a controlled JSON error rather than crashing.
+    res.status(500).json({ message: "Auth Error", error: error?.message || String(error) });
   }
 });
-// Manual Auth routes removed in favor of Better Auth
-// logic handled by app.all("/api/auth/*")
 
 // Transactions
 app.get('/api/transactions', authenticateToken, async (req, res) => {

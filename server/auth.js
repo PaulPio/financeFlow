@@ -5,14 +5,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-console.log("Loading auth.js...");
-console.log("VITE_GOOGLE_CLIENT_ID:", process.env.VITE_GOOGLE_CLIENT_ID ? "Found" : "Missing");
-console.log("VITE_GOOGLE_CLIENT_SECRET:", process.env.VITE_GOOGLE_CLIENT_SECRET ? "Found" : "Missing");
-
-if (!process.env.VITE_GOOGLE_CLIENT_ID || !process.env.VITE_GOOGLE_CLIENT_SECRET) {
-    console.error("CRITICAL ERROR: Google Client ID/Secret missing in server/auth.js");
-}
-
 
 export const auth = betterAuth({
     database: mongodbAdapter(mongoose.connection.useDb('financeflow')), // Ensure we use the correct DB

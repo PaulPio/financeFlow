@@ -12,7 +12,12 @@ import Budget from './models/Budget.js';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(express.json());
 
 // Database Connection
@@ -40,7 +45,17 @@ const authenticateToken = (req, res, next) => {
 
 // --- Routes ---
 
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./auth.js";
+
 // Auth
+// Auth
+// Auth
+// Auth
+app.all(/^\/api\/auth\/.*/, (req, res) => {
+  return toNodeHandler(auth)(req, res);
+});
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;

@@ -10,12 +10,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.38.0",
-    "react-router-dom": "^7.13.0",
+    "better-auth": "^1.4.17",
     "lucide-react": "^0.563.0",
+    "pdfjs-dist": "3.11.174",
     "react": "^19.2.3",
-    "recharts": "^3.7.0",
     "react-dom": "^19.2.3",
-    "pdfjs-dist": "3.11.174"
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

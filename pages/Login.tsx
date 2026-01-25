@@ -1,50 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/localStorageService';
-import { Wallet } from 'lucide-react';
+import { authClient, signIn } from '../lib/auth-client';
+import { Wallet, Loader2 } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Better Auth Session Hook
+  const { data: session, isPending: sessionLoading } = authClient.useSession();
+
+  // Session Bridge: If Better Auth has a session (e.g. from Google), sync it to legacy authService
+  useEffect(() => {
+    const syncSession = async () => {
+      if (session?.user?.email) {
+        // Check if we already have a local user to avoid loops or redundant calls, 
+        // though authService.login is safe to call repeatedly (it returns user)
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser || currentUser.email !== session.user.email) {
+          const user = await authService.login(session.user.email);
+          if (user.hasCompletedOnboarding) {
+            navigate('/');
+          } else {
+            navigate('/onboarding');
+          }
+        } else {
+          // If already synced, just ensure we are in the right place
+          if (currentUser.hasCompletedOnboarding) {
+            navigate('/');
+          }
+        }
+      }
+    };
+    if (session) {
+      syncSession();
+    }
+  }, [session, navigate]);
+
+
+  const handleLoginSuccess = (user: any) => {
+    setLoading(false);
+    if (user.hasCompletedOnboarding) {
+      navigate('/');
+    } else {
+      // Explicitly send to onboarding if not done
+      navigate('/onboarding');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await authService.login(email);
-    setLoading(false);
-    navigate('/');
+    const user = await authService.login(email);
+    handleLoginSuccess(user);
   };
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  React.useEffect(() => {
-    /* global google */
-    if (window.google && process.env.GOOGLE_CLIENT_ID) {
-      window.google.accounts.id.initialize({
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredentialResponse
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById("googleIconDiv"),
-        { theme: "outline", size: "large", width: "100%" }
-      );
-    }
-  }, []);
-
-  const handleGoogleCredentialResponse = async (response: any) => {
-    // Determine user email from JWT without verifying signature (backend should verify)
-    // For demo/MVP, we just extract it.
-    try {
-      const payload = JSON.parse(atob(response.credential.split('.')[1]));
-      if (payload.email) {
-        setLoading(true);
-        await authService.login(payload.email);
-        setLoading(false);
-        navigate('/');
-      }
-    } catch (e) {
-      console.error("Error parsing Google token", e);
-    }
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    await signIn.social({
+      provider: "google",
+      callbackURL: window.location.href // Return to login page to trigger the bridge useEffect
+    });
   };
 
   return (
@@ -59,7 +77,14 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
-          <div id="googleIconDiv" className="w-full flex justify-center"></div>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />}
+            Continue with Google
+          </button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

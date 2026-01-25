@@ -3,7 +3,7 @@ import { TransactionCategory, Transaction, Budget, Goal, FinancialProfile, Portf
 
 // Initialize Gemini
 // Note: In a real production app, API keys should not be exposed in client-side code.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY || '' });
 
 // 1. Categorize Transaction (Fast - Flash Lite)
 export const categorizeTransaction = async (merchant: string, amount: number, description?: string): Promise<string> => {

@@ -2,8 +2,8 @@
 // NOTE: You must have REACT_APP_GOOGLE_CLIENT_ID and REACT_APP_GOOGLE_API_KEY in your env
 // For hackathon/demo purposes, we default to empty strings which will cause the init to fail gracefully if not set.
 
-const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || ''; 
-const API_KEY = process.env.API_KEY || ''; // Re-using the same key if it supports Gmail API, else needs specific one
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const API_KEY = import.meta.env.VITE_API_KEY || ''; // Re-using the same key if it supports Gmail API, else needs specific one
 const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
 
@@ -55,7 +55,7 @@ export const initGmailApi = async () => {
                 resolve();
             }
         }, 5000);
-        
+
         check();
     });
 };
@@ -81,9 +81,9 @@ export const handleGmailLogin = async (): Promise<string> => {
         // Skip prompt if we already have a token (though for implicit flow, we usually re-ask or check expiry)
         // For simplicity, we ask for consent if we don't think we have one, or just request.
         if ((window as any).gapi.client.getToken() === null) {
-            tokenClient.requestAccessToken({prompt: 'consent'});
+            tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
-            tokenClient.requestAccessToken({prompt: ''});
+            tokenClient.requestAccessToken({ prompt: '' });
         }
     });
 };
@@ -118,12 +118,12 @@ export const fetchRecentEmails = async (days = 30) => {
         const date = new Date();
         date.setDate(date.getDate() - days);
         const dateStr = Math.floor(date.getTime() / 1000); // Seconds since epoch
-        
+
         // Search for receipts
         const response = await (window as any).gapi.client.gmail.users.messages.list({
             'userId': 'me',
             'q': `(subject:receipt OR subject:order OR subject:invoice OR subject:payment) after:${dateStr}`,
-            'maxResults': 15 
+            'maxResults': 15
         });
 
         const messages = response.result.messages || [];
@@ -135,11 +135,11 @@ export const fetchRecentEmails = async (days = 30) => {
                 'id': msg.id,
                 'format': 'full'
             });
-            
+
             // Extract body
             let body = '';
             const payload = detail.result.payload;
-            
+
             // Helper to decode base64url
             const decode = (data: string) => {
                 try {
@@ -153,17 +153,17 @@ export const fetchRecentEmails = async (days = 30) => {
                 if (textPart && textPart.body.data) {
                     body = decode(textPart.body.data);
                 } else {
-                     // If no plain text part, look nested (multipart/alternative)
-                     const nestedPart = payload.parts.find((p: any) => p.parts);
-                     if (nestedPart) {
-                         const nestedText = nestedPart.parts.find((p: any) => p.mimeType === 'text/plain');
-                         if (nestedText && nestedText.body.data) {
-                             body = decode(nestedText.body.data);
-                         }
-                     }
+                    // If no plain text part, look nested (multipart/alternative)
+                    const nestedPart = payload.parts.find((p: any) => p.parts);
+                    if (nestedPart) {
+                        const nestedText = nestedPart.parts.find((p: any) => p.mimeType === 'text/plain');
+                        if (nestedText && nestedText.body.data) {
+                            body = decode(nestedText.body.data);
+                        }
+                    }
                 }
             } else if (payload.body.data) {
-                 body = decode(payload.body.data);
+                body = decode(payload.body.data);
             }
 
             // Extract Snippet & Subject

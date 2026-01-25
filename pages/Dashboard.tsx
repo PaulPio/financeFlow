@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import { transactionService, budgetService, authService, billService } from '../services/localStorageService';
+import { transactionService, budgetService, authService, billService, portfolioService } from '../services/localStorageService';
 import { generateInsights } from '../services/geminiService';
 import { Transaction, Budget, TransactionCategory, Bill } from '../types';
 import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Sparkles, Lightbulb, TrendingUp, ArrowRight, CalendarClock, CheckCircle } from 'lucide-react';
@@ -46,7 +46,7 @@ export default function Dashboard() {
         const txs = await transactionService.getAll(user.id);
         const bgs = await budgetService.getAll(user.id);
         const bls = await billService.getAll(user.id);
-        
+
         setTransactions(txs);
         setBudgets(bgs);
         setBills(bls);
@@ -54,26 +54,26 @@ export default function Dashboard() {
 
         // Generate Insights after data load
         if (txs.length > 0) {
-            setLoadingInsights(true);
-            generateInsights(txs, bgs)
-                .then(res => setInsights(res))
-                .catch(err => console.error(err))
-                .finally(() => setLoadingInsights(false));
+          setLoadingInsights(true);
+          generateInsights(txs, bgs)
+            .then(res => setInsights(res))
+            .catch(err => console.error(err))
+            .finally(() => setLoadingInsights(false));
         }
       } else {
-          setLoading(false);
+        setLoading(false);
       }
     };
     fetchData();
   }, []);
 
   const handlePayBill = async (id: string) => {
-      await billService.markAsPaid(id);
-      const user = authService.getCurrentUser();
-      if (user) {
-          const updatedBills = await billService.getAll(user.id);
-          setBills(updatedBills);
-      }
+    await billService.markAsPaid(id);
+    const user = authService.getCurrentUser();
+    if (user) {
+      const updatedBills = await billService.getAll(user.id);
+      setBills(updatedBills);
+    }
   };
 
   if (loading) return <div className="flex justify-center p-12">Loading dashboard...</div>;
@@ -88,7 +88,7 @@ export default function Dashboard() {
     .reduce((sum, t) => sum + t.amount, 0);
 
   const balance = totalIncome - totalExpenses;
-  const surplus = totalIncome - totalExpenses; 
+  const surplus = totalIncome - totalExpenses;
 
   // Pie Chart Data
   const expensesByCategory = transactions
@@ -110,30 +110,30 @@ export default function Dashboard() {
     <div className="space-y-6 pb-20 md:pb-0">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-           <h2 className="text-2xl font-bold text-gray-800">Financial Overview</h2>
-           <p className="text-gray-500">Welcome back! Here's your financial health.</p>
+          <h2 className="text-2xl font-bold text-gray-800">Financial Overview</h2>
+          <p className="text-gray-500">Welcome back! Here's your financial health.</p>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard 
-          title="Total Balance" 
-          value={`$${balance.toLocaleString()}`} 
-          icon={Wallet} 
+        <StatCard
+          title="Total Balance"
+          value={`$${balance.toLocaleString()}`}
+          icon={Wallet}
           color="bg-blue-500"
         />
-        <StatCard 
-          title="Income" 
-          value={`$${totalIncome.toLocaleString()}`} 
-          icon={ArrowUpRight} 
+        <StatCard
+          title="Income"
+          value={`$${totalIncome.toLocaleString()}`}
+          icon={ArrowUpRight}
           color="bg-emerald-500"
           trend={12}
         />
-        <StatCard 
-          title="Expenses" 
-          value={`$${totalExpenses.toLocaleString()}`} 
-          icon={ArrowDownRight} 
+        <StatCard
+          title="Expenses"
+          value={`$${totalExpenses.toLocaleString()}`}
+          icon={ArrowDownRight}
           color="bg-rose-500"
           trend={-5}
         />
@@ -141,101 +141,101 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* AI Insights Section */}
-        <div className="lg:col-span-2 bg-gradient-to-r from-indigo-900 to-slate-900 rounded-xl p-6 shadow-lg text-white relative overflow-hidden flex flex-col justify-between">
-            <div>
-                <div className="flex items-center gap-2 mb-4 relative z-10">
-                    <Sparkles className="text-amber-400" size={20} />
-                    <h3 className="font-bold text-lg">FinFlow AI Insights</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
-                    {loadingInsights ? (
-                        <div className="col-span-2 text-center py-4 text-slate-300 italic animate-pulse">
-                            Analyzing your spending patterns...
-                        </div>
-                    ) : insights.length > 0 ? (
-                        insights.slice(0, 2).map((insight, idx) => (
-                            <div key={idx} className="bg-white/10 backdrop-blur-sm p-4 rounded-lg border border-white/10 flex gap-3">
-                                <Lightbulb className="text-amber-300 flex-shrink-0 mt-1" size={18} />
-                                <p className="text-sm leading-relaxed">{insight}</p>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="col-span-2 text-center py-2 text-slate-400">
-                            Add more transactions to unlock AI insights.
-                        </div>
-                    )}
-                </div>
+        <div className="lg:col-span-2 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 shadow-sm border border-indigo-100 text-gray-800 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4 relative z-10">
+              <Sparkles className="text-indigo-600" size={20} />
+              <h3 className="font-bold text-lg text-indigo-900">FinFlow AI Insights</h3>
             </div>
-            {/* Decorative Background Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -ml-12 -mb-12"></div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+              {loadingInsights ? (
+                <div className="col-span-2 text-center py-4 text-indigo-400 italic animate-pulse">
+                  Analyzing your spending patterns...
+                </div>
+              ) : insights.length > 0 ? (
+                insights.slice(0, 2).map((insight, idx) => (
+                  <div key={idx} className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm flex gap-3">
+                    <Lightbulb className="text-amber-500 flex-shrink-0 mt-1" size={18} />
+                    <p className="text-sm leading-relaxed text-gray-700">{insight}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center py-2 text-indigo-400">
+                  Add more transactions to unlock AI insights.
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -ml-12 -mb-12"></div>
         </div>
 
         {/* Investment Teaser Card */}
         <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
-            <div>
-                <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="text-emerald-500" size={24} />
-                    <h3 className="font-bold text-lg text-gray-800">Invest Your Surplus</h3>
-                </div>
-                {surplus > 0 ? (
-                    <>
-                        <p className="text-gray-500 text-sm mb-4">
-                            You have a potential surplus of <span className="font-bold text-emerald-600">${surplus.toFixed(0)}</span> this month.
-                        </p>
-                        <div className="bg-emerald-50 rounded-lg p-3 mb-4">
-                            <p className="text-xs text-emerald-800">
-                                If invested at 8%, this could be <span className="font-bold">${(surplus * 1.08).toFixed(0)}</span> in a year!
-                            </p>
-                        </div>
-                    </>
-                ) : (
-                    <p className="text-gray-500 text-sm mb-4">
-                        Track your budget to find surplus money to invest.
-                    </p>
-                )}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="text-emerald-500" size={24} />
+              <h3 className="font-bold text-lg text-gray-800">Invest Your Surplus</h3>
             </div>
-            <Link 
-                to="/investments" 
-                className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
-            >
-                Start Investing
-                <ArrowRight size={16} />
-            </Link>
+            {surplus > 0 ? (
+              <>
+                <p className="text-gray-500 text-sm mb-4">
+                  You have a potential surplus of <span className="font-bold text-emerald-600">${surplus.toFixed(0)}</span> this month.
+                </p>
+                <div className="bg-emerald-50 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-emerald-800">
+                    If invested at 8%, this could be <span className="font-bold">${(surplus * 1.08).toFixed(0)}</span> in a year!
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm mb-4">
+                Track your budget to find surplus money to invest.
+              </p>
+            )}
+          </div>
+          <Link
+            to="/investments"
+            className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
+          >
+            Start Investing
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upcoming Bills (New) */}
         <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CalendarClock size={20} className="text-purple-500" />
-                Upcoming Bills
-            </h3>
-            <div className="space-y-3">
-                {upcomingBills.length > 0 ? (
-                    upcomingBills.map(bill => (
-                        <div key={bill.id} className="flex items-center justify-between p-3 border border-gray-50 rounded-lg hover:bg-gray-50">
-                            <div>
-                                <p className="font-medium text-gray-800">{bill.name}</p>
-                                <p className="text-xs text-gray-400">Due: {new Date(bill.dueDate).toLocaleDateString()}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-bold text-gray-900">${bill.amount}</span>
-                                <button onClick={() => handlePayBill(bill.id)} className="text-emerald-500 hover:text-emerald-600" title="Mark Paid">
-                                    <CheckCircle size={18} />
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                        <p>No upcoming bills found.</p>
-                        <Link to="/upload" className="text-purple-600 hover:underline">Upload a statement</Link>
-                    </div>
-                )}
-            </div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <CalendarClock size={20} className="text-purple-500" />
+            Upcoming Bills
+          </h3>
+          <div className="space-y-3">
+            {upcomingBills.length > 0 ? (
+              upcomingBills.map(bill => (
+                <div key={bill.id} className="flex items-center justify-between p-3 border border-gray-50 rounded-lg hover:bg-gray-50">
+                  <div>
+                    <p className="font-medium text-gray-800">{bill.name}</p>
+                    <p className="text-xs text-gray-400">Due: {new Date(bill.dueDate).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900">${bill.amount}</span>
+                    <button onClick={() => handlePayBill(bill.id)} className="text-emerald-500 hover:text-emerald-600" title="Mark Paid">
+                      <CheckCircle size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                <p>No upcoming bills found.</p>
+                <Link to="/upload" className="text-purple-600 hover:underline">Upload a statement</Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Expense Breakdown */}
@@ -263,7 +263,7 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-               <div className="h-full flex items-center justify-center text-gray-400">No expense data yet</div>
+              <div className="h-full flex items-center justify-center text-gray-400">No expense data yet</div>
             )}
           </div>
         </div>
@@ -273,67 +273,67 @@ export default function Dashboard() {
           <h3 className="text-lg font-semibold mb-6">Budget Status</h3>
           <div className="space-y-5">
             {budgets.map(budget => {
-               const spent = expensesByCategory[budget.category] || 0;
-               const percentage = Math.min((spent / budget.limit) * 100, 100);
-               const isOver = spent > budget.limit;
-               
-               return (
-                 <div key={budget.id}>
-                   <div className="flex justify-between text-sm mb-1">
-                     <span className="font-medium">{budget.category}</span>
-                     <span className={isOver ? "text-red-500 font-bold" : "text-gray-500"}>
-                       ${spent.toFixed(0)} / ${budget.limit}
-                     </span>
-                   </div>
-                   <div className="w-full bg-gray-200 rounded-full h-2.5">
-                     <div 
-                       className={`h-2.5 rounded-full ${isOver ? 'bg-red-500' : 'bg-emerald-500'}`} 
-                       style={{ width: `${percentage}%` }}
-                     ></div>
-                   </div>
-                 </div>
-               )
+              const spent = expensesByCategory[budget.category] || 0;
+              const percentage = Math.min((spent / budget.limit) * 100, 100);
+              const isOver = spent > budget.limit;
+
+              return (
+                <div key={budget.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium">{budget.category}</span>
+                    <span className={isOver ? "text-red-500 font-bold" : "text-gray-500"}>
+                      ${spent.toFixed(0)} / ${budget.limit}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full ${isOver ? 'bg-red-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )
             })}
             {budgets.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                    No budgets set. Go to Budgets page to create one.
-                </div>
+              <div className="text-center py-8 text-gray-400">
+                No budgets set. Go to Budgets page to create one.
+              </div>
             )}
           </div>
         </div>
       </div>
-      
+
       {/* Recent Transactions */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
         <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="border-b border-gray-100 text-gray-500 text-sm">
-                        <th className="pb-3 font-medium">Date</th>
-                        <th className="pb-3 font-medium">Merchant</th>
-                        <th className="pb-3 font-medium">Category</th>
-                        <th className="pb-3 font-medium text-right">Amount</th>
-                    </tr>
-                </thead>
-                <tbody className="text-sm">
-                    {transactions.slice(0, 5).map(t => (
-                        <tr key={t.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                            <td className="py-3 text-gray-600">{new Date(t.date).toLocaleDateString()}</td>
-                            <td className="py-3 font-medium text-gray-800">{t.merchant}</td>
-                            <td className="py-3">
-                                <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">{t.category}</span>
-                            </td>
-                            <td className={`py-3 text-right font-medium ${t.category === 'Income' ? 'text-emerald-600' : 'text-gray-800'}`}>
-                                {t.category === 'Income' ? '+' : ''}${t.amount.toFixed(2)}
-                            </td>
-                        </tr>
-                    ))}
-                    {transactions.length === 0 && (
-                         <tr><td colSpan={4} className="py-8 text-center text-gray-400">No transactions recorded</td></tr>
-                    )}
-                </tbody>
-            </table>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-100 text-gray-500 text-sm">
+                <th className="pb-3 font-medium">Date</th>
+                <th className="pb-3 font-medium">Merchant</th>
+                <th className="pb-3 font-medium">Category</th>
+                <th className="pb-3 font-medium text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {transactions.slice(0, 5).map(t => (
+                <tr key={t.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                  <td className="py-3 text-gray-600">{new Date(t.date).toLocaleDateString()}</td>
+                  <td className="py-3 font-medium text-gray-800">{t.merchant}</td>
+                  <td className="py-3">
+                    <span className="px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">{t.category}</span>
+                  </td>
+                  <td className={`py-3 text-right font-medium ${t.category === 'Income' ? 'text-emerald-600' : 'text-gray-800'}`}>
+                    {t.category === 'Income' ? '+' : ''}${t.amount.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              {transactions.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-gray-400">No transactions recorded</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
 import Budget from './models/Budget.js';
+import { auth } from "./auth.js";
+import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
 
@@ -57,15 +59,19 @@ const authenticateToken = async (req, res, next) => {
     req.session = session.session;
     next();
   } catch (error) {
-    console.error("Auth Middleware Error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Auth Middleware Error [Critical]:", {
+      message: error.message,
+      stack: error.stack,
+      headers: req.headers
+    });
+    res.status(500).json({ 
+      message: "Internal Server Error in Auth Middleware",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
 // --- Routes ---
-
-import { toNodeHandler } from "better-auth/node";
-import { auth } from "./auth.js";
 
 // Auth
 

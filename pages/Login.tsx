@@ -39,7 +39,7 @@ export default function Login() {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/login"
+        callbackURL: "/"
       });
       console.log("[Login] Social login call sent");
     } catch (err) {

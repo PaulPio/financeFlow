@@ -50,8 +50,9 @@ const getBaseURL = () => {
         console.log("[Auth] Detected VERCEL_URL:", vUrl);
         return vUrl;
     }
-    console.log("[Auth] Defaulting to localhost baseURL");
-    return "http://localhost:3000/api/auth";
+    const port = process.env.PORT || 5000;
+    console.log(`[Auth] Defaulting to localhost baseURL with port ${port}`);
+    return `http://localhost:${port}/api/auth`;
 };
 
 const finalBaseURL = getBaseURL();
@@ -72,6 +73,7 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.VITE_GOOGLE_CLIENT_ID,
             clientSecret: process.env.VITE_GOOGLE_CLIENT_SECRET,
+            enabled: !!(process.env.VITE_GOOGLE_CLIENT_ID && process.env.VITE_GOOGLE_CLIENT_SECRET),
         }
     },
     user: {

@@ -135,12 +135,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const handleLogout = async () => {
     try {
       await authClient.signOut();
-      authService.logout();
-      window.location.href = '/#/login';
     } catch (e) {
-      console.error(e);
+      console.error("SignOut error:", e);
+    } finally {
       authService.logout();
-      window.location.href = '/#/login';
+      // Force reload to clear all states
+      window.location.assign('/');
     }
   };
 
@@ -157,13 +157,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50 text-slate-800">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col fixed h-full z-10 hidden md:flex">
-        <div className="p-6 border-b border-slate-700 flex items-center gap-3">
-          <Wallet className="h-8 w-8 text-emerald-400" />
-          <h1 className="text-xl font-bold tracking-tight">FinFlow</h1>
+      <aside className="w-72 bg-slate-900 text-white flex flex-col fixed h-full z-10 hidden md:flex border-r border-slate-800 shadow-2xl">
+        <div className="p-8 border-b border-slate-800/50 flex items-center gap-3 group cursor-pointer">
+          <div className="p-2 bg-emerald-500/10 rounded-xl group-hover:bg-emerald-500/20 transition-all duration-300">
+            <Wallet className="h-8 w-8 text-emerald-400" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-emerald-400 bg-clip-text text-transparent brand-font">FinFlow</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-6 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -171,35 +173,35 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group ${isActive
+                  ? 'bg-emerald-600/90 text-white shadow-lg shadow-emerald-900/20 translate-x-1'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
                   }`}
               >
-                <Icon size={20} />
-                <span className="font-medium">{item.label}</span>
+                <Icon size={20} className={isActive ? 'text-white' : 'group-hover:text-emerald-400 transition-colors'} />
+                <span className="font-semibold">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-6 border-t border-slate-800/50">
           <Link
             to="/profile"
-            className="flex items-center gap-3 px-4 py-2 mb-2 hover:bg-slate-800 rounded-lg transition-colors group"
+            className="flex items-center gap-3 px-4 py-3 mb-4 hover:bg-slate-800/50 rounded-xl transition-all duration-200 group"
           >
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold group-hover:bg-slate-600 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-sm font-bold border border-slate-600 group-hover:border-emerald-500/50 transition-colors">
               {navUser.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate group-hover:text-emerald-300 transition-colors">{navUser.name}</p>
-              <p className="text-xs text-slate-400 truncate">{navUser.email}</p>
+              <p className="text-sm font-semibold truncate group-hover:text-emerald-400 transition-colors">{navUser.name}</p>
+              <p className="text-[10px] text-slate-500 truncate mt-0.5">{navUser.email}</p>
             </div>
-            <Settings size={16} className="text-slate-500 group-hover:text-emerald-300" />
+            <Settings size={16} className="text-slate-600 group-hover:text-emerald-400 transition-all" />
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-slate-800 rounded-md transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
           >
             <LogOut size={16} />
             Sign Out
@@ -208,59 +210,74 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-slate-900 text-white z-20 h-16 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-6 w-6 text-emerald-400" />
-          <span className="font-bold text-lg">FinFlow</span>
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-slate-900 text-white z-20 h-16 flex items-center justify-between px-6 border-b border-slate-800 shadow-lg">
+        <div className="flex items-center gap-2 group cursor-pointer">
+          <div className="p-1.5 bg-emerald-500/10 rounded-lg group-active:scale-95 transition-transform">
+            <Wallet className="h-6 w-6 text-emerald-400" />
+          </div>
+          <span className="font-bold text-xl brand-font bg-gradient-to-r from-white to-emerald-400 bg-clip-text text-transparent">FinFlow</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="relative">
-            <button onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markAllRead(); }} className="relative p-1">
-              <Bell size={20} />
-              {unreadCount > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>}
+            <button
+              onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markAllRead(); }}
+              className="relative p-2 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors"
+            >
+              <Bell size={20} className="text-slate-300" />
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-slate-900"></span>}
             </button>
           </div>
-          <Link to="/profile" className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
+          <Link to="/profile" className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-sm font-bold border border-slate-600">
             {navUser.name.charAt(0).toUpperCase()}
           </Link>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto mt-16 md:mt-0 relative">
-        {/* Desktop Notification Bell */}
-        <div className="hidden md:flex absolute top-6 right-8 z-30">
+      <main className="flex-1 md:ml-72 p-4 md:p-10 overflow-y-auto mt-16 md:mt-0 relative bg-[#f9fafb]">
+        {/* Desktop Notification Bell - Repositioned to avoid overlap */}
+        <div className="hidden md:flex justify-end mb-6">
           <div className="relative">
             <button
               onClick={() => { setShowNotifs(!showNotifs); if (!showNotifs) markAllRead(); }}
-              className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 border border-gray-200 relative"
+              className="p-2.5 bg-white/70 backdrop-blur-md rounded-2xl shadow-sm hover:shadow-md hover:bg-white transition-all border border-gray-200/50 relative group"
             >
-              <Bell size={20} className="text-gray-600" />
+              <Bell size={20} className="text-gray-600 group-hover:text-emerald-600 transition-colors" />
               {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center">
+                <span className="absolute top-0 right-0 transform translate-x-1/3 -translate-y-1/3 bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center shadow-lg shadow-emerald-500/20">
                   {unreadCount}
                 </span>
               )}
             </button>
 
             {showNotifs && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-40">
-                <div className="p-3 border-b border-gray-50 flex justify-between items-center">
-                  <h3 className="font-bold text-sm text-gray-800">Notifications</h3>
-                  <span className="text-xs text-gray-400">Recent alerts</span>
+              <div className="absolute right-0 mt-3 w-85 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-40 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="font-bold text-sm text-gray-800 brand-font">Notifications</h3>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">Updates</span>
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto">
                   {notifications.length > 0 ? (
                     notifications.map(n => (
-                      <div key={n.id} className={`p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
-                        <p className="text-sm font-medium text-gray-800">{n.title}</p>
-                        <p className="text-xs text-gray-500 mt-1">{n.message}</p>
-                        <p className="text-[10px] text-gray-400 mt-2 text-right">{new Date(n.date).toLocaleDateString()}</p>
+                      <div key={n.id} className={`p-4 border-b border-gray-50 last:border-0 hover:bg-emerald-50/30 transition-colors ${!n.isRead ? 'bg-emerald-50/50' : ''}`}>
+                        <div className="flex gap-3">
+                          <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!n.isRead ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800 leading-tight">{n.title}</p>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-400 mt-2 font-medium">{new Date(n.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-4 text-center text-gray-400 text-xs">No notifications yet</div>
+                    <div className="p-8 text-center">
+                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Bell size={20} className="text-gray-300" />
+                      </div>
+                      <p className="text-gray-400 text-xs font-medium">All caught up!</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -268,13 +285,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto pb-20 md:pb-0">
           {children}
         </div>
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-20">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 flex justify-around p-3 z-20 pb-safe shadow-[0_-4px_20px_0_rgba(0,0,0,0.03)]">
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -282,10 +299,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 ${isActive ? 'text-emerald-600' : 'text-gray-500'}`}
+              className={`flex flex-col items-center gap-1.5 px-3 py-1 rounded-xl transition-all ${isActive ? 'text-emerald-600 bg-emerald-50 content-[""]' : 'text-gray-400'}`}
             >
-              <Icon size={20} />
-              <span className="text-[10px]">{item.label}</span>
+              <Icon size={22} className={isActive ? 'scale-110' : ''} />
+              <span className="text-[10px] font-bold uppercase tracking-widest">{item.label}</span>
             </Link>
           )
         })}

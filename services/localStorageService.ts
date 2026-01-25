@@ -222,9 +222,14 @@ export const transactionService = {
 };
 
 export const budgetService = {
-    getAll: async (userId: string): Promise<(Budget & { spent: number })[]> => {
+    getAll: async (userId: string, month?: number, year?: number): Promise<(Budget & { spent: number })[]> => {
         try {
-            const res = await fetch(`${API_URL}/budgets`, { headers: getHeaders(), credentials: 'include' });
+            const params = new URLSearchParams();
+            if (month) params.append('month', month.toString());
+            if (year) params.append('year', year.toString());
+            const url = `${API_URL}/budgets${params.toString() ? '?' + params.toString() : ''}`;
+
+            const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {

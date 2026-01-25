@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/localStorageService';
+import { authClient } from '../lib/auth-client';
 import { FinancialProfile } from '../types';
 import { ArrowRight, Check, DollarSign, Briefcase, Target, ShieldAlert, Sparkles } from 'lucide-react';
 
@@ -66,7 +67,7 @@ export default function Onboarding() {
       // 1. Update status in Database (Real Truth)
       await authClient.updateUser({
         hasCompletedOnboarding: true
-      });
+      } as any);
     } catch (e) {
       console.error("Failed to update db status", e);
     }

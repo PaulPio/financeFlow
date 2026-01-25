@@ -41,6 +41,7 @@ export const auth = betterAuth({
         "http://localhost:3001",
         "http://localhost:5000",
         "http://localhost:5173",
-        "https://finance-flow-lac.vercel.app"
+        "https://finance-flow-lac.vercel.app",
+        "https://finance-flow-git-vercel-paulpios-projects.vercel.app"
     ]
 });

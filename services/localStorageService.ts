@@ -1,4 +1,4 @@
-import { User, Transaction, Budget, TransactionCategory, Goal, Bill, AppNotification } from '../types';
+import { User, Transaction, Budget, TransactionCategory, Goal, Bill, AppNotification, PortfolioAnalysis } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -11,7 +11,8 @@ const STORAGE_KEYS = {
     BILLS: 'finflow_bills',
     NOTIFICATIONS: 'finflow_notifications',
     TOKEN: 'auth_token',
-    CURRENT_USER: 'finflow_user'
+    CURRENT_USER: 'finflow_user',
+    PORTFOLIO: 'finflow_portfolio'
 };
 
 const getHeaders = () => {
@@ -382,5 +383,17 @@ export const notificationService = {
             n.userId === userId ? { ...n, isRead: true } : n
         );
         localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
+    }
+};
+
+export const portfolioService = {
+    get: async (userId: string): Promise<PortfolioAnalysis | null> => {
+        const key = `${STORAGE_KEYS.PORTFOLIO}_${userId}`;
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+    },
+    save: async (userId: string, data: PortfolioAnalysis): Promise<void> => {
+        const key = `${STORAGE_KEYS.PORTFOLIO}_${userId}`;
+        localStorage.setItem(key, JSON.stringify(data));
     }
 };

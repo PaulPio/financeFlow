@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { transactionService, authService, billService } from '../services/localStorageService';
+import { transactionService, authService, billService, portfolioService } from '../services/localStorageService';
 import { categorizeTransaction, analyzeReceipt, mapCsvHeaders, parseEmailReceipt, parseBankStatement, analyzePortfolioPDF } from '../services/geminiService';
 import { initGmailApi, handleGmailLogin, fetchRecentEmails } from '../services/gmailService';
 import { extractTextFromPdf } from '../services/pdfService';
 import { TransactionCategory, PortfolioAnalysis } from '../types';
-import { UploadCloud, Check, AlertCircle, FileText, Camera, Loader2, Mail, RefreshCw, File, PieChart, TrendingUp, Shield } from 'lucide-react';
+import { UploadCloud, Check, AlertCircle, FileText, Camera, Loader2, Mail, RefreshCw, File, PieChart, TrendingUp, Shield, Save } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Upload() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
@@ -26,6 +29,13 @@ export default function Upload() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   
   const [gmailConnected, setGmailConnected] = useState(false);
+
+  // Switch tab if navigating from another page
+  useEffect(() => {
+    if (location.state && location.state.activeTab) {
+        setTab(location.state.activeTab);
+    }
+  }, [location]);
 
   useEffect(() => {
     if (tab === 'gmail') {
@@ -183,14 +193,31 @@ export default function Upload() {
           setProgress('AI is benchmarking your portfolio against industry standards...');
           const analysis = await analyzePortfolioPDF(text);
           
-          if (analysis) {
+          if (analysis && analysis.totalValue > 0) {
               setPortfolioAnalysis(analysis);
           } else {
-              alert("Could not extract portfolio data.");
+              alert("Could not extract portfolio data. Please try a different PDF or clearer format.");
           }
       } catch (e) {
           console.error(e);
-          alert("Error analyzing portfolio.");
+          alert("Error analyzing portfolio. Please ensure the PDF is text-readable.");
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const savePortfolio = async () => {
+      const user = authService.getCurrentUser();
+      if (!user || !portfolioAnalysis) return;
+      
+      setLoading(true);
+      try {
+          await portfolioService.save(user.id, portfolioAnalysis);
+          alert("Portfolio analysis saved to your Investments profile!");
+          navigate('/investments');
+      } catch (e) {
+          console.error(e);
+          alert("Failed to save portfolio.");
       } finally {
           setLoading(false);
       }
@@ -394,7 +421,12 @@ export default function Upload() {
                     <div className="text-left animate-fade-in">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-bold text-gray-800">Portfolio Analysis</h3>
-                            <button onClick={() => { setPortfolioAnalysis(null); setPortfolioFile(null); }} className="text-sm text-gray-500 hover:text-gray-900 underline">Analyze another</button>
+                            <div className="flex gap-3">
+                                <button onClick={() => { setPortfolioAnalysis(null); setPortfolioFile(null); }} className="text-sm text-gray-500 hover:text-gray-900 underline">Analyze another</button>
+                                <button onClick={savePortfolio} className="bg-emerald-600 text-white px-4 py-1.5 rounded-md hover:bg-emerald-700 flex items-center gap-2 text-sm">
+                                    <Save size={16} /> Save to Profile
+                                </button>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -422,26 +454,32 @@ export default function Upload() {
                             </div>
                         </div>
 
-                        <h4 className="font-bold text-gray-700 mb-3">Holdings Detected</h4>
+                        <h4 className="font-bold text-slate-800 mb-3">Holdings Detected</h4>
                         <div className="overflow-x-auto border rounded-lg">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="p-3">Symbol</th>
-                                        <th className="p-3">Description</th>
-                                        <th className="p-3 text-right">Qty</th>
-                                        <th className="p-3 text-right">Value</th>
+                                        <th className="p-3 font-semibold text-gray-600">Symbol</th>
+                                        <th className="p-3 font-semibold text-gray-600">Description</th>
+                                        <th className="p-3 text-right font-semibold text-gray-600">Qty</th>
+                                        <th className="p-3 text-right font-semibold text-gray-600">Value</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {portfolioAnalysis.holdings.map((h, idx) => (
-                                        <tr key={idx}>
-                                            <td className="p-3 font-bold">{h.symbol}</td>
-                                            <td className="p-3">{h.description}</td>
-                                            <td className="p-3 text-right">{h.quantity}</td>
-                                            <td className="p-3 text-right">${h.marketValue.toLocaleString()}</td>
+                                    {portfolioAnalysis.holdings && portfolioAnalysis.holdings.length > 0 ? (
+                                        portfolioAnalysis.holdings.map((h, idx) => (
+                                            <tr key={idx}>
+                                                <td className="p-3 font-bold text-slate-800">{h.symbol}</td>
+                                                <td className="p-3 text-gray-700">{h.description}</td>
+                                                <td className="p-3 text-right text-gray-600">{h.quantity}</td>
+                                                <td className="p-3 text-right font-medium text-emerald-600">${h.marketValue.toLocaleString()}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={4} className="p-4 text-center text-gray-500">No individual holdings extracted. Check "Total Value" above.</td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>

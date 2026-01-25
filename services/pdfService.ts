@@ -5,8 +5,12 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Using cdnjs is more reliable for web workers than esm.sh regarding importScripts and CORS
 const lib = (pdfjsLib as any).default || pdfjsLib;
 
-if (lib.GlobalWorkerOptions) {
-    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+try {
+    if (lib && lib.GlobalWorkerOptions) {
+        lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+} catch (e) {
+    console.warn("Failed to set PDF worker source. PDF parsing might fallback to main thread or fail.", e);
 }
 
 export const extractTextFromPdf = async (file: File): Promise<string> => {

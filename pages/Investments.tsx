@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { transactionService, authService } from '../services/localStorageService';
+import { transactionService, authService, portfolioService } from '../services/localStorageService';
 import { generateInvestmentAdvice } from '../services/geminiService';
-import { Transaction, TransactionCategory, FinancialProfile } from '../types';
-import { TrendingUp, DollarSign, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Transaction, TransactionCategory, FinancialProfile, PortfolioAnalysis } from '../types';
+import { TrendingUp, DollarSign, Sparkles, Loader2, Shield, PieChart, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Investments() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [userProfile, setUserProfile] = useState<FinancialProfile | undefined>(undefined);
+  const [portfolio, setPortfolio] = useState<PortfolioAnalysis | null>(null);
   
   // State for calculator
   const [monthlyIncome, setMonthlyIncome] = useState(0);
@@ -24,6 +27,8 @@ export default function Investments() {
       if (user) {
         setUserProfile(user.financialProfile);
         const allTx = await transactionService.getAll(user.id);
+        const savedPortfolio = await portfolioService.get(user.id);
+        setPortfolio(savedPortfolio);
         
         // Filter for current month to estimate monthly surplus
         const now = new Date();
@@ -107,11 +112,86 @@ export default function Investments() {
         <div>
            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                <TrendingUp className="text-emerald-500" />
-               Invest Your Surplus
+               Investments
            </h2>
-           <p className="text-gray-500">Visualize how investing your monthly savings can build wealth over time.</p>
+           <p className="text-gray-500">Track your portfolio and plan your future wealth.</p>
         </div>
 
+        {/* --- EXISTING PORTFOLIO SECTION --- */}
+        {portfolio ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                         <h3 className="text-lg font-bold text-gray-900">Current Portfolio</h3>
+                         <p className="text-sm text-gray-500">Last updated via upload</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm text-gray-500">Total Value</p>
+                        <p className="text-3xl font-bold text-slate-900">${portfolio.totalValue.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                     <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                        <h4 className="font-bold text-purple-900 mb-2 flex items-center gap-2"><PieChart size={18}/> Allocation Analysis</h4>
+                        <p className="text-sm text-purple-800 leading-relaxed">{portfolio.benchmarkComparison}</p>
+                     </div>
+                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2"><Shield size={18}/> Risk & Strategy</h4>
+                        <p className="text-sm text-blue-800 leading-relaxed">{portfolio.aiComments}</p>
+                        <p className="text-xs font-bold mt-2 text-blue-700 uppercase">Risk Level: {portfolio.riskAssessment}</p>
+                     </div>
+                </div>
+
+                <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="p-3 font-semibold text-gray-600">Symbol</th>
+                                <th className="p-3 font-semibold text-gray-600">Description</th>
+                                <th className="p-3 font-semibold text-gray-600 text-right">Qty</th>
+                                <th className="p-3 font-semibold text-gray-600 text-right">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {portfolio.holdings.map((h, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="p-3 font-bold text-slate-800">{h.symbol}</td>
+                                    <td className="p-3 text-gray-600">{h.description}</td>
+                                    <td className="p-3 text-right text-gray-600">{h.quantity}</td>
+                                    <td className="p-3 text-right font-medium text-emerald-600">${h.marketValue.toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div className="mt-4 flex justify-end">
+                    <button 
+                        onClick={() => navigate('/upload', { state: { activeTab: 'portfolio' } })}
+                        className="text-sm text-emerald-600 font-medium hover:underline"
+                    >
+                        Update Portfolio
+                    </button>
+                </div>
+            </div>
+        ) : (
+            <div className="bg-slate-900 text-white rounded-xl p-8 text-center">
+                 <h3 className="text-xl font-bold mb-2">Connect Your Portfolio</h3>
+                 <p className="text-slate-300 mb-4 max-w-md mx-auto">
+                     Upload a PDF statement from your brokerage (Robinhood, Fidelity, etc.) to get AI-powered analysis of your holdings.
+                 </p>
+                 <button 
+                    onClick={() => navigate('/upload', { state: { activeTab: 'portfolio' } })} 
+                    className="inline-block bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg transition-colors cursor-pointer"
+                 >
+                     Upload Portfolio PDF
+                 </button>
+            </div>
+        )}
+
+
+        <h3 className="text-xl font-bold text-gray-800 mt-8">Surplus Growth Projector</h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Calculator Card */}

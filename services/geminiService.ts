@@ -507,24 +507,33 @@ export const parseBankStatement = async (pdfText: string): Promise<{
     }
 };
 
-// 12. Analyze Investment Portfolio PDF (New)
+// 12. Analyze Investment Portfolio PDF (Fixed Prompt)
 export const analyzePortfolioPDF = async (pdfText: string): Promise<PortfolioAnalysis | null> => {
   try {
     const prompt = `
-      Act as a senior financial analyst. Analyze the following text extracted from an investment portfolio statement (e.g., Robinhood, Fidelity, Vanguard).
+      Act as a senior financial analyst. Analyze the following text extracted from an investment portfolio statement.
 
-      Input Text:
+      Input Text (OCR Output):
       "${pdfText.substring(0, 40000).replace(/"/g, "'")}"
 
-      Tasks:
-      1. Extract Holdings: List symbols (e.g., AAPL, VOO), description, quantity, and market value.
-      2. Calculate Total Value: Sum of all holdings + cash.
-      3. Comparison & Analysis:
-         - Compare this portfolio's allocation (Equity/Bonds/Crypto/Cash) to a standard benchmark (e.g., S&P 500 or 60/40 portfolio).
-         - Comment on diversification (sector exposure, geo exposure).
-         - Assess Risk (Low, Medium, High).
+      Target Format (Common in Brokerage PDFs like Robinhood):
+      "Description Symbol AcctType Qty Price MktValue %"
       
-      Output JSON format required.
+      Example Line:
+      "Global X MSCI Argentina ETF ARGT Cash 12.377443 $91.4100 $1,131.42 6.65%"
+
+      Tasks:
+      1. Extract Holdings: 
+         - Scan for lines matching the pattern [Description] [Symbol] [Type] [Qty] [Price] [Value] [%].
+         - Symbol: The Ticker (e.g. ARGT, AAPL). 
+         - Description: The name before the symbol.
+         - Quantity: The number before price.
+         - Market Value: The total value (remove $).
+      2. Calculate Total Value: Sum of all holdings market values.
+      3. Comparison & Analysis:
+         - Compare this portfolio's allocation to a standard S&P 500 or 60/40 benchmark.
+         - Comment on diversification.
+         - Assess Risk (Low, Medium, High).
     `;
 
     const response = await ai.models.generateContent({

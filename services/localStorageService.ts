@@ -183,7 +183,8 @@ export const transactionService = {
             console.log("[TransactionService] Success! Transaction saved to DB:", data);
             return data;
         } catch (e) {
-            console.warn("[TransactionService] DB Connection Failed. Falling back to Local Storage.", e);
+            console.error("[TransactionService] DB SAVE FAILED. Error details:", e);
+            console.warn("[TransactionService] Falling back to Local Storage due to error.");
             const all = safeParse(STORAGE_KEYS.TRANSACTIONS);
             const newTx = { ...transaction, id: Date.now().toString() };
             all.push(newTx);

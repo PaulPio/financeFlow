@@ -38,8 +38,11 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/financ
 // Append database name if not present in URI, though usually strictly URI is preferred. 
 // Assuming URI connects to cluster, we select DB.
 mongoose.connect(MONGODB_URI, { dbName: 'financeflow' })
-  .then(() => console.log('Successfully connected to MongoDB: financeflow'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .then(() => console.log('Successfully connected to MongoDB: financeflow at ' + MONGODB_URI.replace(/:([^:@]+)@/, ':****@')))
+  .catch(err => {
+    console.error('MongoDB connection error. PLEASE CHECK MONGODB_URI:', err);
+    // We don't exit here so the app can still serve frontend/fallback, but API routes will fail
+  });
 
 // removed JWT_SECRET definition
 

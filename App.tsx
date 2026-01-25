@@ -31,62 +31,118 @@ import Investments from './pages/Investments';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const user = authService.getCurrentUser();
+  console.log("[App] Rendering Layout, Path:", location.pathname);
+
+  const { data: session, isPending: sessionLoading } = authClient.useSession();
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  // Memoize user to avoid infinite re-renders, but depend on forceUpdate
+  const user = useMemo(() => {
+    const u = authService.getCurrentUser();
+    console.log("[App] Local user retrieved:", u?.email || "none", "Completed:", u?.hasCompletedOnboarding);
+    return u;
+  }, [session?.user?.email, forceUpdate]);
+
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Poll for notifications
-  // Fix: Depend on user.id instead of user object to avoid infinite loop
-  const userId = user?.id;
+  // Listen for manual updates (e.g. from Onboarding)
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      console.log("[App] User update event received, refreshing state...");
+      setForceUpdate(prev => prev + 1);
+    };
+    window.addEventListener('user-updated', handleUserUpdate);
+    return () => window.removeEventListener('user-updated', handleUserUpdate);
+  }, []);
+
+  // Sync session to legacy authService if missing
+  useEffect(() => {
+    if (session?.user && (!user || user.email !== session.user.email)) {
+      console.log("[App] Syncing session to local storage:", session.user.email);
+      authService.login(session.user.email);
+      setForceUpdate(prev => prev + 1); // Force re-read after sync
+    }
+  }, [session?.user?.email, user?.email]);
 
   useEffect(() => {
-    if (!userId) return;
+    const userId = user?.id || session?.user?.id;
+    if (!userId) {
+      console.log("[App] No userId for notifications yet.");
+      return;
+    }
+
     const checkNotifs = async () => {
-      const all = await notificationService.getAll(userId);
-      setNotifications(all);
-      setUnreadCount(all.filter(n => !n.isRead).length);
+      try {
+        console.log("[App] Checking notifications for:", userId);
+        const all = await notificationService.getAll(userId);
+        setNotifications(all);
+        setUnreadCount(all.filter(n => !n.isRead).length);
+      } catch (e) {
+        console.error("[App] Notification pull failed", e);
+      }
     };
     checkNotifs();
-    const interval = setInterval(checkNotifs, 3000);
+    const interval = setInterval(checkNotifs, 10000);
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [user?.id, session?.user?.id]);
 
-  const handleLogout = async () => {
-    try {
-      await authClient.signOut();
-    } catch (e) {
-      console.error("Better Auth logout failed", e);
-    }
-    authService.logout();
-    window.location.href = '/#/login';
-    window.location.reload();
+  if (sessionLoading) {
+    console.log("[App] Layout blocked by sessionLoading");
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 font-medium">Initializing FinFlow...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    console.log("[App] No session found, redirecting to /login");
+    return <Navigate to="/login" replace />;
+  }
+
+  // Safety object for UI rendering
+  const navUser = {
+    id: session.user.id,
+    name: session.user.name || user?.name || "User",
+    email: session.user.email,
+    // Trust the session first (DB), fall back to local if session field missing/undefined
+    hasCompletedOnboarding: (session.user as any).hasCompletedOnboarding ?? user?.hasCompletedOnboarding ?? false
   };
 
+  console.log("[App] navUser stats:", { hasCompletedOnboarding: navUser.hasCompletedOnboarding, db: (session.user as any).hasCompletedOnboarding, local: user?.hasCompletedOnboarding });
+
+  // Redirect logic
+  if (!navUser.hasCompletedOnboarding && location.pathname !== '/onboarding') {
+    console.log("[App] Redirecting to /onboarding");
+    return <Navigate to="/onboarding" replace />;
+  }
+  if (navUser.hasCompletedOnboarding && location.pathname === '/onboarding') {
+    console.log("[App] Redirecting away from onboarding to /");
+    return <Navigate to="/" replace />;
+  }
+
   const markAllRead = async () => {
-    if (user) {
-      await notificationService.markAllAsRead(user.id);
+    if (navUser.id) {
+      console.log("[App] Marking all read for:", navUser.id);
+      await notificationService.markAsRead(navUser.id); // Optimized in service for user-level read
       setUnreadCount(0);
     }
   };
 
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
-  // Redirect to onboarding if not done
-  if (!user.hasCompletedOnboarding && location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" />;
-  }
-
-  // Redirect to dashboard if onboarding IS done but user is trying to access onboarding
-  if (user.hasCompletedOnboarding && location.pathname === '/onboarding') {
-    return <Navigate to="/" />;
-  }
-
-  if (location.pathname === '/onboarding') {
-    return <>{children}</>;
-  }
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut();
+      authService.logout();
+      window.location.href = '/#/login';
+    } catch (e) {
+      console.error(e);
+      authService.logout();
+      window.location.href = '/#/login';
+    }
+  };
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -133,11 +189,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className="flex items-center gap-3 px-4 py-2 mb-2 hover:bg-slate-800 rounded-lg transition-colors group"
           >
             <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold group-hover:bg-slate-600 transition-colors">
-              {user.name.charAt(0).toUpperCase()}
+              {navUser.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate group-hover:text-emerald-300 transition-colors">{user.name}</p>
-              <p className="text-xs text-slate-400 truncate">{user.email}</p>
+              <p className="text-sm font-medium truncate group-hover:text-emerald-300 transition-colors">{navUser.name}</p>
+              <p className="text-xs text-slate-400 truncate">{navUser.email}</p>
             </div>
             <Settings size={16} className="text-slate-500 group-hover:text-emerald-300" />
           </Link>
@@ -166,7 +222,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </button>
           </div>
           <Link to="/profile" className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold">
-            {user.name.charAt(0).toUpperCase()}
+            {navUser.name.charAt(0).toUpperCase()}
           </Link>
         </div>
       </div>

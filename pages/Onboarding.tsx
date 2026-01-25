@@ -61,17 +61,26 @@ export default function Onboarding() {
     }
   };
 
-  const finishOnboarding = () => {
-    // Save profile and mark as complete
+  const finishOnboarding = async () => {
+    try {
+      // 1. Update status in Database (Real Truth)
+      await authClient.updateUser({
+        hasCompletedOnboarding: true
+      });
+    } catch (e) {
+      console.error("Failed to update db status", e);
+    }
+
+    // 2. Save profile to legacy storage (for the profile details themselves)
     authService.updateUser({
       financialProfile: profile,
       hasCompletedOnboarding: true
     });
 
-    // Simple navigation is enough since Layout checks authService.getCurrentUser() on render
-    // We navigate to root, which will render Dashboard via Layout
+    // 3. Force App.tsx to refresh user state
+    window.dispatchEvent(new Event('user-updated'));
+
     navigate('/');
-    // Reload only if absolutely necessary, but try to avoid it for smoother UX
   };
 
   const updateProfile = (key: keyof FinancialProfile, value: any) => {

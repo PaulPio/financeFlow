@@ -9,60 +9,43 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Better Auth Session Hook
-  const { data: session, isPending: sessionLoading } = authClient.useSession();
+  console.log("[Login] Rendering Login page. Loading state:", loading);
 
-  // Session Bridge: If Better Auth has a session (e.g. from Google), sync it to legacy authService
-  useEffect(() => {
-    const syncSession = async () => {
-      if (session?.user?.email) {
-        // Check if we already have a local user to avoid loops or redundant calls, 
-        // though authService.login is safe to call repeatedly (it returns user)
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser || currentUser.email !== session.user.email) {
-          const user = await authService.login(session.user.email);
-          if (user.hasCompletedOnboarding) {
-            navigate('/');
-          } else {
-            navigate('/onboarding');
-          }
-        } else {
-          // If already synced, just ensure we are in the right place
-          if (currentUser.hasCompletedOnboarding) {
-            navigate('/');
-          }
-        }
-      }
-    };
-    if (session) {
-      syncSession();
-    }
-  }, [session, navigate]);
-
-
-  const handleLoginSuccess = (user: any) => {
-    setLoading(false);
-    if (user.hasCompletedOnboarding) {
-      navigate('/');
-    } else {
-      // Explicitly send to onboarding if not done
-      navigate('/onboarding');
-    }
-  };
+  // No manual session listener here - App.tsx handles the global redirect
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const user = await authService.login(email);
-    handleLoginSuccess(user);
+    console.log("[Login] Attempting email login:", email);
+    try {
+      await authClient.signIn.email({
+        email,
+        password: "demo-password-123", // Using demo password as per client preference
+        callbackURL: "/"
+      });
+      console.log("[Login] Email login initiated");
+    } catch (err) {
+      console.warn("[Login] Email login failed or demo mode fallback:", err);
+      // Fallback for demo mode
+      const user = await authService.login(email);
+      console.log("[Login] Fallback login success:", user.email);
+      navigate('/');
+    }
   };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    await signIn.social({
-      provider: "google",
-      callbackURL: window.location.href // Return to login page to trigger the bridge useEffect
-    });
+    console.log("[Login] Initiating Google Social login");
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/login"
+      });
+      console.log("[Login] Social login call sent");
+    } catch (err) {
+      console.error("[Login] Google login failed:", err);
+      setLoading(false);
+    }
   };
 
   return (

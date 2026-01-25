@@ -16,10 +16,10 @@ const STORAGE_KEYS = {
 };
 
 const getHeaders = () => {
-    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    // Better Auth uses cookies/session, so we don't need manual Bearer tokens anymore.
+    // However, we might still need Content-Type for JSON.
     return {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
     };
 };
 
@@ -60,53 +60,46 @@ const seedDemoData = (userId: string) => {
 
 export const authService = {
     login: async (email: string): Promise<User> => {
-        const password = "demo-password-123";
         const name = email.split('@')[0];
 
         try {
-            // 1. Try Real Backend
-            let response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+            // 1. Check if user exists in persistent storage
+            const usersRaw = localStorage.getItem(STORAGE_KEYS.USERS);
+            const users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
 
-            if (response.status === 400) {
-                // Try register if user not found
-                response = await fetch(`${API_URL}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, name })
-                });
+            const existingUser = users.find(u => u.email === email);
+
+            if (existingUser) {
+                console.log("[Auth] Found existing user:", existingUser.email);
+                localStorage.setItem(STORAGE_KEYS.TOKEN, 'better-auth-session');
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(existingUser));
+                return existingUser;
             }
 
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(data.user));
-                return data.user;
-            }
-            throw new Error('Backend auth failed');
+            // 2. Create new user if not found
+            console.log("[Auth] Creating new user for:", email);
+            const newUser: User = {
+                id: Date.now().toString(),
+                email,
+                name,
+                hasCompletedOnboarding: false
+            };
+
+            // Save to persistent storage
+            users.push(newUser);
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+            // Set as current session
+            localStorage.setItem(STORAGE_KEYS.TOKEN, 'better-auth-session');
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
+
+            // Seed data for new user
+            seedDemoData(newUser.id);
+
+            return newUser;
         } catch (e) {
-            console.warn("Backend unavailable (Failed to fetch). Switching to Offline/Demo mode using LocalStorage.");
-
-            // Fallback: LocalStorage Auth
-            let users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-            let user = users.find(u => u.email === email);
-
-            if (!user) {
-                user = { id: Date.now().toString(), email, name };
-                users.push(user);
-                localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-            }
-
-            localStorage.setItem(STORAGE_KEYS.TOKEN, 'mock-jwt-token');
-            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-
-            // Auto-seed data for new demo users so the app isn't empty
-            seedDemoData(user.id);
-
-            return user;
+            console.warn("Auth sync failed", e);
+            return { id: '0', email, name: 'Demo' };
         }
     },
 
@@ -116,8 +109,14 @@ export const authService = {
     },
 
     getCurrentUser: (): User | null => {
-        const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-        return raw ? JSON.parse(raw) : null;
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+            if (!raw || raw === 'undefined') return null;
+            return JSON.parse(raw);
+        } catch (e) {
+            console.error("Failed to parse user", e);
+            return null;
+        }
     },
 
     updateUser: (updates: Partial<User>): User | null => {
@@ -126,33 +125,47 @@ export const authService = {
 
         const updatedUser = { ...currentUser, ...updates };
 
-        // Update in current session
+        // Update current session
         localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedUser));
 
-        // Update in users list
-        const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-        const index = users.findIndex(u => u.id === currentUser.id);
-        if (index !== -1) {
-            users[index] = updatedUser;
-            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        // Update persistent storage
+        try {
+            const usersRaw = localStorage.getItem(STORAGE_KEYS.USERS);
+            const users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
+            const index = users.findIndex(u => u.id === currentUser.id);
+
+            if (index !== -1) {
+                users[index] = updatedUser;
+                localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+            }
+        } catch (e) {
+            console.error("Failed to persist user update", e);
         }
 
         return updatedUser;
     }
 };
 
+const safeParse = (key: string, fallback: string = '[]') => {
+    try {
+        const val = localStorage.getItem(key);
+        if (!val || val === 'undefined') return JSON.parse(fallback);
+        return JSON.parse(val);
+    } catch (e) {
+        console.error(`Failed to parse ${key}`, e);
+        return JSON.parse(fallback);
+    }
+};
+
 export const transactionService = {
     getAll: async (userId: string): Promise<Transaction[]> => {
         try {
-            const res = await fetch(`${API_URL}/transactions`, { headers: getHeaders() });
+            const res = await fetch(`${API_URL}/transactions`, { headers: getHeaders(), credentials: 'include' });
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {
-            // Fallback
-            const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
-            return all
-                .filter((t: Transaction) => t.userId === userId)
-                .sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const all = safeParse(STORAGE_KEYS.TRANSACTIONS);
+            return all.filter((t: Transaction) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         }
     },
 
@@ -161,14 +174,13 @@ export const transactionService = {
             const res = await fetch(`${API_URL}/transactions`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(transaction)
+                body: JSON.stringify(transaction),
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {
-            console.warn('Transaction save failed on backend, falling back to local storage:', e);
-            // Fallback
-            const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
+            const all = safeParse(STORAGE_KEYS.TRANSACTIONS);
             const newTx = { ...transaction, id: Date.now().toString() };
             all.push(newTx);
             localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
@@ -181,12 +193,12 @@ export const transactionService = {
             const res = await fetch(`${API_URL}/transactions/batch`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(transactions)
+                body: JSON.stringify(transactions),
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
         } catch (e) {
-            // Fallback
-            const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
+            const all = safeParse(STORAGE_KEYS.TRANSACTIONS);
             const newTxs = transactions.map((t, i) => ({ ...t, id: (Date.now() + i).toString() }));
             all.push(...newTxs);
             localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
@@ -197,12 +209,12 @@ export const transactionService = {
         try {
             const res = await fetch(`${API_URL}/transactions/${id}`, {
                 method: 'DELETE',
-                headers: getHeaders()
+                headers: getHeaders(),
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
         } catch (e) {
-            // Fallback
-            let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
+            let all = safeParse(STORAGE_KEYS.TRANSACTIONS);
             all = all.filter((t: Transaction) => t.id !== id);
             localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
         }
@@ -212,24 +224,16 @@ export const transactionService = {
 export const budgetService = {
     getAll: async (userId: string): Promise<(Budget & { spent: number })[]> => {
         try {
-            const res = await fetch(`${API_URL}/budgets`, { headers: getHeaders() });
+            const res = await fetch(`${API_URL}/budgets`, { headers: getHeaders(), credentials: 'include' });
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {
-            // Fallback: Logic to mimic backend 'spent' calculation
-            const budgets = JSON.parse(localStorage.getItem(STORAGE_KEYS.BUDGETS) || '[]').filter((b: Budget) => b.userId === userId);
-            const transactions = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]').filter((t: Transaction) => t.userId === userId);
-
+            const budgets = safeParse(STORAGE_KEYS.BUDGETS).filter((b: Budget) => b.userId === userId);
+            const transactions = safeParse(STORAGE_KEYS.TRANSACTIONS).filter((t: Transaction) => t.userId === userId);
             return budgets.map((b: Budget) => {
                 const spent = transactions
-                    .filter((t: Transaction) => {
-                        if (!t.category || t.category === 'Income') return false;
-                        const txCat = t.category.trim().toLowerCase();
-                        const bgCat = b.category.trim().toLowerCase();
-                        return txCat === bgCat;
-                    })
+                    .filter((t: Transaction) => t.category === b.category && t.category !== 'Income')
                     .reduce((sum: number, t: Transaction) => sum + (Number(t.amount) || 0), 0);
-
                 return { ...b, spent };
             });
         }
@@ -240,23 +244,16 @@ export const budgetService = {
             const res = await fetch(`${API_URL}/budgets`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(budget)
+                body: JSON.stringify(budget),
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
             return await res.json();
         } catch (e) {
-            // Fallback
-            const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BUDGETS) || '[]');
-            if ('id' in budget) {
-                const index = all.findIndex((b: Budget) => b.id === budget.id);
-                if (index !== -1) {
-                    all[index] = budget;
-                    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(all));
-                    return budget as Budget;
-                }
-            }
-            const newBudget = { ...budget, id: Date.now().toString() };
-            all.push(newBudget);
+            const all = safeParse(STORAGE_KEYS.BUDGETS);
+            const newBudget = { ...budget, id: 'id' in budget ? budget.id : Date.now().toString() };
+            const index = all.findIndex((b: any) => b.id === newBudget.id);
+            if (index !== -1) all[index] = newBudget; else all.push(newBudget);
             localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(all));
             return newBudget as Budget;
         }
@@ -266,12 +263,12 @@ export const budgetService = {
         try {
             const res = await fetch(`${API_URL}/budgets/${id}`, {
                 method: 'DELETE',
-                headers: getHeaders()
+                headers: getHeaders(),
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Fetch failed');
         } catch (e) {
-            // Fallback
-            let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BUDGETS) || '[]');
+            let all = safeParse(STORAGE_KEYS.BUDGETS);
             all = all.filter((b: Budget) => b.id !== id);
             localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(all));
         }
@@ -280,30 +277,19 @@ export const budgetService = {
 
 export const goalService = {
     getAll: async (userId: string): Promise<Goal[]> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOALS) || '[]');
+        const all = safeParse(STORAGE_KEYS.GOALS);
         return all.filter((g: Goal) => g.userId === userId);
     },
-
     save: async (goal: Omit<Goal, 'id'> | Goal): Promise<Goal> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOALS) || '[]');
-
-        if ('id' in goal) {
-            const index = all.findIndex((g: Goal) => g.id === goal.id);
-            if (index !== -1) {
-                all[index] = goal;
-                localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
-                return goal as Goal;
-            }
-        }
-
-        const newGoal = { ...goal, id: Date.now().toString() };
-        all.push(newGoal);
+        const all = safeParse(STORAGE_KEYS.GOALS);
+        const newGoal = { ...goal, id: 'id' in goal ? goal.id : Date.now().toString() };
+        const index = all.findIndex((g: any) => g.id === newGoal.id);
+        if (index !== -1) all[index] = newGoal; else all.push(newGoal);
         localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
         return newGoal as Goal;
     },
-
     delete: async (id: string): Promise<void> => {
-        let all = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOALS) || '[]');
+        let all = safeParse(STORAGE_KEYS.GOALS);
         all = all.filter((g: Goal) => g.id !== id);
         localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(all));
     }
@@ -311,35 +297,19 @@ export const goalService = {
 
 export const billService = {
     getAll: async (userId: string): Promise<Bill[]> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
-        return all
-            .filter((b: Bill) => b.userId === userId)
-            .sort((a: Bill, b: Bill) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        const all = safeParse(STORAGE_KEYS.BILLS);
+        return all.filter((b: Bill) => b.userId === userId).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     },
-
     add: async (bill: Omit<Bill, 'id'>): Promise<Bill> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
+        const all = safeParse(STORAGE_KEYS.BILLS);
         const newBill = { ...bill, id: Date.now().toString() };
         all.push(newBill);
         localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
-
-        // Trigger notification
-        await notificationService.add({
-            userId: bill.userId,
-            title: 'New Bill Added',
-            message: `${bill.name} is due on ${new Date(bill.dueDate).toLocaleDateString()}`,
-            type: 'info'
-        });
-
-        // Simulate Email
-        console.log(`[EMAIL SENT] To: user@finflow.com | Subject: New Bill Due | Body: You have a payment of $${bill.amount} for ${bill.name} due on ${bill.dueDate}`);
-
         return newBill;
     },
-
     markAsPaid: async (id: string): Promise<void> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.BILLS) || '[]');
-        const index = all.findIndex((b: Bill) => b.id === id);
+        const all = safeParse(STORAGE_KEYS.BILLS);
+        const index = all.findIndex((b: any) => b.id === id);
         if (index !== -1) {
             all[index].isPaid = true;
             localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(all));
@@ -349,56 +319,39 @@ export const billService = {
 
 export const notificationService = {
     getAll: async (userId: string): Promise<AppNotification[]> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
-        return all
-            .filter((n: AppNotification) => n.userId === userId)
-            .sort((a: AppNotification, b: AppNotification) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const all = safeParse(STORAGE_KEYS.NOTIFICATIONS);
+        return all.filter((n: AppNotification) => n.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     },
-
     getUnreadCount: async (userId: string): Promise<number> => {
         const all = await notificationService.getAll(userId);
         return all.filter(n => !n.isRead).length;
     },
-
     add: async (notif: Omit<AppNotification, 'id' | 'date' | 'isRead'>): Promise<AppNotification> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
-        const newNotif: AppNotification = {
-            ...notif,
-            id: Date.now().toString(),
-            date: new Date().toISOString(),
-            isRead: false
-        };
+        const all = safeParse(STORAGE_KEYS.NOTIFICATIONS);
+        const newNotif = { ...notif, id: Date.now().toString(), date: new Date().toISOString(), isRead: false };
         all.push(newNotif);
         localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
         return newNotif;
     },
-
     markAsRead: async (id: string): Promise<void> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
-        const index = all.findIndex((n: AppNotification) => n.id === id);
+        const all = safeParse(STORAGE_KEYS.NOTIFICATIONS);
+        const index = all.findIndex((n: any) => n.id === id);
         if (index !== -1) {
             all[index].isRead = true;
             localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(all));
         }
-    },
-
-    markAllAsRead: async (userId: string): Promise<void> => {
-        const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '[]');
-        const updated = all.map((n: AppNotification) =>
-            n.userId === userId ? { ...n, isRead: true } : n
-        );
-        localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
     }
 };
 
 export const portfolioService = {
     get: async (userId: string): Promise<PortfolioAnalysis | null> => {
-        const key = `${STORAGE_KEYS.PORTFOLIO}_${userId}`;
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
+        const data = localStorage.getItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`);
+        if (!data || data === 'undefined') return null;
+        try {
+            return JSON.parse(data);
+        } catch (e) { return null; }
     },
     save: async (userId: string, data: PortfolioAnalysis): Promise<void> => {
-        const key = `${STORAGE_KEYS.PORTFOLIO}_${userId}`;
-        localStorage.setItem(key, JSON.stringify(data));
+        localStorage.setItem(`${STORAGE_KEYS.PORTFOLIO}_${userId}`, JSON.stringify(data));
     }
 };

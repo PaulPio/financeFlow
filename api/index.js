@@ -2,8 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+// removed jwt and bcryptjs imports
 
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
@@ -28,19 +27,27 @@ mongoose.connect(MONGODB_URI, { dbName: 'financeflow' })
   .then(() => console.log('Successfully connected to MongoDB: financeflow'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-key-change-me';
+// removed JWT_SECRET definition
 
 // Middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
+// Middleware
+const authenticateToken = async (req, res, next) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers
+    });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
+    if (!session) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    req.user = session.user;
+    req.session = session.session;
     next();
-  });
+  } catch (error) {
+    console.error("Auth Middleware Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 };
 
 // --- Routes ---
@@ -52,42 +59,17 @@ import { auth } from "./auth.js";
 // Auth
 // Auth
 // Auth
-app.all(/^\/api\/auth\/.*/, (req, res) => {
-  return toNodeHandler(auth)(req, res);
-});
-
-app.post('/api/auth/register', async (req, res) => {
+// Auth
+app.all(/^\/api\/auth\/.*/, async (req, res) => {
   try {
-    const { email, password, name } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'User already exists' });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword, name });
-    await user.save();
-
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    return await toNodeHandler(auth)(req, res);
+  } catch (error) {
+    res.status(500).json({ message: "Auth Error", error: error.message });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'User not found' });
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).json({ message: 'Invalid password' });
-
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET);
-    res.json({ token, user: { id: user._id, email: user.email, name: user.name } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Manual Auth routes removed in favor of Better Auth
+// logic handled by app.all("/api/auth/*")
 
 // Transactions
 app.get('/api/transactions', authenticateToken, async (req, res) => {
@@ -196,7 +178,8 @@ app.delete('/api/budgets/:id', authenticateToken, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
+// Listen if running locally or if PORT is specifically set
+if (process.env.NODE_ENV !== 'production' || process.env.PORT) {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 

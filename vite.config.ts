@@ -26,6 +26,18 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
+    },
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            pdfjs: ['pdfjs-dist'],
+            recharts: ['recharts'],
+            vendor: ['react', 'react-dom', 'react-router-dom', 'lucide-react']
+          }
+        }
+      }
     }
   };
 });

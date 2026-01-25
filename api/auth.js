@@ -17,7 +17,7 @@ export const auth = betterAuth({
             clientSecret: process.env.VITE_GOOGLE_CLIENT_SECRET,
         }
     },
-    trustedOrigins: ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"],
+    trustedOrigins: ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "https://finance-flow-lac.vercel.app"],
     user: {
         additionalFields: {
             hasCompletedOnboarding: { type: "boolean", required: false, defaultValue: false },

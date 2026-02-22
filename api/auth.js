@@ -29,7 +29,7 @@ try {
     console.log("[Auth] Connected successfully");
 } catch (e) {
     console.error("[Auth] MongoDB connection failed:", e.message);
-    // Don't throw here, let the adapter try or fail gracefully
+    throw new Error(`[Auth] Cannot start: MongoDB connection failed - ${e.message}`);
 }
 
 const db = client.db('financeflow');

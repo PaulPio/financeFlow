@@ -137,7 +137,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 app.post('/api/transactions/batch', authenticateToken, async (req, res) => {
   try {
     const transactions = req.body.map(t => ({ ...t, userId: req.user.id }));
-    const result = await Transaction.insertMany(transactions);
+    const result = await Transaction.insertMany(transactions, { ordered: false });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -174,6 +174,7 @@ app.post('/api/goals', authenticateToken, async (req, res) => {
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Goal not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
     const goal = new Goal({ ...data, userId: req.user.id });
@@ -206,9 +207,10 @@ app.get('/api/portfolio', authenticateToken, async (req, res) => {
 
 app.post('/api/portfolio', authenticateToken, async (req, res) => {
   try {
+    const { id, userId, ...updateData } = req.body;
     const portfolio = await Portfolio.findOneAndUpdate(
       { userId: req.user.id },
-      req.body,
+      { $set: updateData },
       { upsert: true, new: true }
     );
     res.json({ ...portfolio.toObject(), id: portfolio._id });
@@ -238,6 +240,7 @@ app.post('/api/bills', authenticateToken, async (req, res) => {
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Bill not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
     const bill = new Bill({ ...data, userId: req.user.id });
@@ -314,6 +317,7 @@ app.post('/api/budgets', authenticateToken, async (req, res) => {
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Budget not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
 

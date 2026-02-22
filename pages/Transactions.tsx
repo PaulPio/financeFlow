@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { transactionService, authService } from '../services/localStorageService';
 import { authClient } from '../lib/auth-client';
 import { Transaction, TransactionCategory } from '../types';
-import { Trash2, Search, Filter, Calendar as CalendarIcon, Plus, X } from 'lucide-react';
+import { Trash2, Search, Filter, Calendar as CalendarIcon, Plus, X, Loader2 } from 'lucide-react';
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -65,6 +65,7 @@ export default function Transactions() {
   }, [search, categoryFilter, typeFilter, transactions, startDate, endDate]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newTrans, setNewTrans] = useState({
     merchant: '',
     amount: '',
@@ -85,6 +86,7 @@ export default function Transactions() {
       return;
     }
 
+    setSaving(true);
     await transactionService.add({
       userId: user.id,
       date: newTrans.date,
@@ -93,6 +95,7 @@ export default function Transactions() {
       category: newTrans.category,
       description: newTrans.description
     });
+    setSaving(false);
 
     setIsAddModalOpen(false);
     setNewTrans({
@@ -302,9 +305,10 @@ export default function Transactions() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
+                  disabled={saving}
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  Save Transaction
+                  {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Save Transaction'}
                 </button>
               </div>
             </form>

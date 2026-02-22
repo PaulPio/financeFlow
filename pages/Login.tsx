@@ -7,6 +7,7 @@ import { Wallet, Loader2 } from 'lucide-react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   console.log("[Login] Rendering Login page. Loading state:", loading);
@@ -16,6 +17,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     console.log("[Login] Attempting email login:", email);
     try {
       await authClient.signIn.email({
@@ -26,10 +28,16 @@ export default function Login() {
       console.log("[Login] Email login initiated");
     } catch (err) {
       console.warn("[Login] Email login failed or demo mode fallback:", err);
-      // Fallback for demo mode
-      const user = await authService.login(email);
-      console.log("[Login] Fallback login success:", user.email);
-      navigate('/');
+      try {
+        // Fallback for demo mode
+        const user = await authService.login(email);
+        console.log("[Login] Fallback login success:", user.email);
+        navigate('/');
+      } catch (fallbackErr) {
+        console.error("[Login] Fallback login also failed:", fallbackErr);
+        setError("Sign in failed. Please check your email and try again.");
+        setLoading(false);
+      }
     }
   };
 
@@ -88,9 +96,12 @@ export default function Login() {
                 placeholder="demo@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all bg-white text-gray-900 placeholder-gray-400"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
               />
             </div>
+            {error && (
+              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            )}
             <button
               type="submit"
               disabled={loading}

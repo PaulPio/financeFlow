@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { budgetService, authService } from '../services/localStorageService';
 import { Budget, TransactionCategory } from '../types';
-import { Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 
 // Define type with spent included
 interface BudgetWithSpent extends Budget {
@@ -12,6 +12,7 @@ export default function Budgets() {
     const [budgets, setBudgets] = useState<BudgetWithSpent[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         category: TransactionCategory.Dining,
         limit: 500,
@@ -62,7 +63,9 @@ export default function Budgets() {
                 return;
             }
 
+            setSaving(true);
             await budgetService.save({ ...formData, userId: user.id });
+            setSaving(false);
             setIsModalOpen(false);
             fetchData();
         }
@@ -194,9 +197,10 @@ export default function Budgets() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
+                                    disabled={saving}
+                                    className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-70 flex items-center justify-center gap-2"
                                 >
-                                    Create Budget
+                                    {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : 'Create Budget'}
                                 </button>
                             </div>
                         </form>

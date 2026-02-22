@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/localStorageService';
 import { authClient } from '../lib/auth-client';
 import { FinancialProfile } from '../types';
-import { ArrowRight, Check, DollarSign, Briefcase, Target, ShieldAlert, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, DollarSign, Briefcase, Target, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
 
 const steps = [
   { id: 1, title: 'Welcome' },
@@ -18,6 +18,7 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<FinancialProfile>({
     monthlyIncome: 0,
     currency: 'USD',
@@ -63,6 +64,7 @@ export default function Onboarding() {
   };
 
   const finishOnboarding = async () => {
+    setSaving(true);
     try {
       // 1. Update status in Database (Real Truth)
       await authClient.updateUser({
@@ -275,10 +277,20 @@ export default function Onboarding() {
 
           <button
             onClick={handleNext}
-            className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2"
+            disabled={saving}
+            className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-70"
           >
-            {currentStep === steps.length ? 'Finish Setup' : 'Continue'}
-            <ArrowRight size={18} />
+            {saving ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                {currentStep === steps.length ? 'Finish Setup' : 'Continue'}
+                <ArrowRight size={18} />
+              </>
+            )}
           </button>
         </div>
       </div>

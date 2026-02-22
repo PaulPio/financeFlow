@@ -10,5 +10,7 @@ const transactionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 transactionSchema.index({ userId: 1, date: -1 });
+// Supports the budget aggregation query (match on userId + date range + category)
+transactionSchema.index({ userId: 1, date: 1, category: 1 });
 
 export default mongoose.model('Transaction', transactionSchema);

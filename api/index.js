@@ -1,26 +1,23 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-// removed jwt and bcryptjs imports
 
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
 import Budget from './models/Budget.js';
 import { auth } from "./auth.js";
 import { toNodeHandler } from "better-auth/node";
+import { connectDB } from "./db.js";
 
 dotenv.config();
 
 const app = express();
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
     const allowedOrigins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"];
 
-    // Check if origin is in allowed list or is a vercel deployment
     if (allowedOrigins.indexOf(origin) !== -1 || origin.includes(".vercel.app")) {
       callback(null, true);
     } else {
@@ -33,20 +30,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Database Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/financeflow';
-// Append database name if not present in URI, though usually strictly URI is preferred. 
-// Assuming URI connects to cluster, we select DB.
-mongoose.connect(MONGODB_URI, { dbName: 'financeflow' })
-  .then(() => console.log('Successfully connected to MongoDB: financeflow at ' + MONGODB_URI.replace(/:([^:@]+)@/, ':****@')))
-  .catch(err => {
-    console.error('MongoDB connection error. PLEASE CHECK MONGODB_URI:', err);
-    // We don't exit here so the app can still serve frontend/fallback, but API routes will fail
-  });
+// Reuse the shared, cached connection from auth.js (already connected by the time routes run)
+connectDB().catch(err => console.error('MongoDB connection error:', err));
 
-// removed JWT_SECRET definition
-
-// Middleware
 // Middleware
 const authenticateToken = async (req, res, next) => {
   try {
@@ -77,10 +63,7 @@ const authenticateToken = async (req, res, next) => {
 // --- Routes ---
 
 // Auth
-
-// Auth prefix handler
 app.use("/api/auth", async (req, res) => {
-  // Log all incoming auth requests for debugging
   console.log(`[Auth Request] ${req.method} ${req.url}`);
 
   if (req.method === "OPTIONS") {
@@ -114,13 +97,12 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
       if (endDate) query.date.$lte = new Date(endDate);
     }
 
-    const transactions = await Transaction.find(query).sort({ date: -1 });
-    res.json(transactions.map(t => ({ ...t.toObject(), id: t._id })));
+    const transactions = await Transaction.find(query).sort({ date: -1 }).lean();
+    res.json(transactions.map(t => ({ ...t, id: t._id })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 app.post('/api/transactions', authenticateToken, async (req, res) => {
   console.log("[API] Received POST /api/transactions request");
@@ -137,7 +119,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 app.post('/api/transactions/batch', authenticateToken, async (req, res) => {
   try {
     const transactions = req.body.map(t => ({ ...t, userId: req.user.id }));
-    const result = await Transaction.insertMany(transactions);
+    const result = await Transaction.insertMany(transactions, { ordered: false });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -156,8 +138,8 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
 // Goals
 app.get('/api/goals', authenticateToken, async (req, res) => {
   try {
-    const goals = await Goal.find({ userId: req.user.id }).sort({ deadline: 1 });
-    res.json(goals.map(g => ({ ...g.toObject(), id: g._id })));
+    const goals = await Goal.find({ userId: req.user.id }).sort({ deadline: 1 }).lean();
+    res.json(goals.map(g => ({ ...g, id: g._id })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -167,13 +149,13 @@ app.post('/api/goals', authenticateToken, async (req, res) => {
   try {
     const { id, ...data } = req.body;
     if (id) {
-      // Prevent userId spoofing
       const { userId, ...updateData } = data;
       const updated = await Goal.findOneAndUpdate(
         { _id: id, userId: req.user.id },
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Goal not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
     const goal = new Goal({ ...data, userId: req.user.id });
@@ -196,9 +178,9 @@ app.delete('/api/goals/:id', authenticateToken, async (req, res) => {
 // Portfolio
 app.get('/api/portfolio', authenticateToken, async (req, res) => {
   try {
-    const portfolio = await Portfolio.findOne({ userId: req.user.id });
+    const portfolio = await Portfolio.findOne({ userId: req.user.id }).lean();
     if (!portfolio) return res.json(null);
-    res.json({ ...portfolio.toObject(), id: portfolio._id });
+    res.json({ ...portfolio, id: portfolio._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -206,9 +188,10 @@ app.get('/api/portfolio', authenticateToken, async (req, res) => {
 
 app.post('/api/portfolio', authenticateToken, async (req, res) => {
   try {
+    const { id, userId, ...updateData } = req.body;
     const portfolio = await Portfolio.findOneAndUpdate(
       { userId: req.user.id },
-      req.body,
+      { $set: updateData },
       { upsert: true, new: true }
     );
     res.json({ ...portfolio.toObject(), id: portfolio._id });
@@ -220,8 +203,8 @@ app.post('/api/portfolio', authenticateToken, async (req, res) => {
 // Bills
 app.get('/api/bills', authenticateToken, async (req, res) => {
   try {
-    const bills = await Bill.find({ userId: req.user.id }).sort({ dueDate: 1 });
-    res.json(bills.map(b => ({ ...b.toObject(), id: b._id })));
+    const bills = await Bill.find({ userId: req.user.id }).sort({ dueDate: 1 }).lean();
+    res.json(bills.map(b => ({ ...b, id: b._id })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -231,13 +214,13 @@ app.post('/api/bills', authenticateToken, async (req, res) => {
   try {
     const { id, ...data } = req.body;
     if (id) {
-      // Prevent userId spoofing
       const { userId, ...updateData } = data;
       const updated = await Bill.findOneAndUpdate(
         { _id: id, userId: req.user.id },
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Bill not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
     const bill = new Bill({ ...data, userId: req.user.id });
@@ -263,9 +246,6 @@ app.post('/api/bills/:id/pay', authenticateToken, async (req, res) => {
 // Budgets
 app.get('/api/budgets', authenticateToken, async (req, res) => {
   try {
-    const budgets = await Budget.find({ userId: req.user.id });
-
-    // Calculate spent for current month for each budget
     const { month, year } = req.query;
     let startDate, endDate;
 
@@ -278,23 +258,33 @@ app.get('/api/budgets', authenticateToken, async (req, res) => {
       endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     }
 
-    const transactions = await Transaction.find({
-      userId: req.user.id,
-      date: { $gte: startDate, $lte: endDate },
-      category: { $ne: 'Income' }
-    });
+    // Run budgets fetch and spending aggregation in parallel
+    const [budgets, spentByCategory] = await Promise.all([
+      Budget.find({ userId: req.user.id }).lean(),
+      Transaction.aggregate([
+        {
+          $match: {
+            userId: req.user.id,
+            date: { $gte: startDate, $lte: endDate },
+            category: { $ne: 'Income' }
+          }
+        },
+        {
+          $group: {
+            _id: '$category',
+            total: { $sum: '$amount' }
+          }
+        }
+      ])
+    ]);
 
-    const budgetsWithSpent = budgets.map(budget => {
-      const spent = transactions
-        .filter(t => t.category === budget.category)
-        .reduce((sum, t) => sum + t.amount, 0);
+    const spentMap = Object.fromEntries(spentByCategory.map(s => [s._id, s.total]));
 
-      return {
-        ...budget.toObject(),
-        id: budget._id,
-        spent
-      };
-    });
+    const budgetsWithSpent = budgets.map(budget => ({
+      ...budget,
+      id: budget._id,
+      spent: spentMap[budget.category] ?? 0
+    }));
 
     res.json(budgetsWithSpent);
   } catch (err) {
@@ -304,20 +294,18 @@ app.get('/api/budgets', authenticateToken, async (req, res) => {
 
 app.post('/api/budgets', authenticateToken, async (req, res) => {
   try {
-    // Check if exists
     if (req.body.id) {
-      // Update
-      // Prevent userId spoofing
       const { userId, ...updateData } = req.body;
       const updated = await Budget.findOneAndUpdate(
         { _id: req.body.id, userId: req.user.id },
         updateData,
         { new: true }
       );
+      if (!updated) return res.status(404).json({ error: 'Budget not found' });
       return res.json({ ...updated.toObject(), id: updated._id });
     }
 
-    const exists = await Budget.findOne({ userId: req.user.id, category: req.body.category });
+    const exists = await Budget.findOne({ userId: req.user.id, category: req.body.category }).lean();
     if (exists) return res.status(400).json({ message: 'Budget already exists' });
 
     const budget = new Budget({ ...req.body, userId: req.user.id });
@@ -338,7 +326,6 @@ app.delete('/api/budgets/:id', authenticateToken, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-// Listen if running locally or if PORT is specifically set
 if (process.env.NODE_ENV !== 'production' || process.env.PORT) {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }

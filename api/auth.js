@@ -1,43 +1,28 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
-import mongoose from "mongoose";
 import dotenv from "dotenv";
-
-import { MongoClient } from "mongodb";
+import { connectDB, mongoose } from "./db.js";
 
 dotenv.config();
 
-
-
 console.log("[Auth] Booting initialization...");
 
-if (!process.env.MONGODB_URI) {
-    console.error("[Auth] Missing MONGODB_URI");
-    throw new Error("MONGODB_URI is missing in environment variables");
-}
 if (!process.env.BETTER_AUTH_SECRET) {
     console.error("[Auth] Missing BETTER_AUTH_SECRET");
     throw new Error("BETTER_AUTH_SECRET is missing in environment variables");
 }
 
-const mongoUri = process.env.MONGODB_URI.trim();
-const client = new MongoClient(mongoUri);
+// Reuse the shared Mongoose connection — no separate MongoClient needed
+console.log("[Auth] Connecting to MongoDB via shared pool...");
+await connectDB();
+console.log("[Auth] Connected successfully");
 
-try {
-    console.log("[Auth] Connecting to MongoDB...");
-    await client.connect();
-    console.log("[Auth] Connected successfully");
-} catch (e) {
-    console.error("[Auth] MongoDB connection failed:", e.message);
-    // Don't throw here, let the adapter try or fail gracefully
-}
-
-const db = client.db('financeflow');
+// mongoose.connection.db is the native Db object required by the MongoDB adapter
+const db = mongoose.connection.db;
 
 const getBaseURL = () => {
     let url = process.env.BETTER_AUTH_URL;
     if (url) {
-        // Remove trailing slash if present to avoid double slashes
         url = url.replace(/\/$/, "");
         if (!url.endsWith('/api/auth')) {
             url = `${url}/api/auth`;

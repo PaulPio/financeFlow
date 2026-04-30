@@ -5,9 +5,8 @@ import dotenv from 'dotenv';
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
 import Budget from './models/Budget.js';
-import { auth } from "./auth.js";
+import { getAuth } from "./auth.js";
 import { toNodeHandler } from "better-auth/node";
-import { connectDB } from "./db.js";
 
 dotenv.config();
 
@@ -30,12 +29,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Reuse the shared, cached connection from auth.js (already connected by the time routes run)
-connectDB().catch(err => console.error('MongoDB connection error:', err));
-
 // Middleware
 const authenticateToken = async (req, res, next) => {
   try {
+    const auth = await getAuth();
     const session = await auth.api.getSession({
       headers: req.headers
     });
@@ -71,6 +68,7 @@ app.use("/api/auth", async (req, res) => {
   }
 
   try {
+    const auth = await getAuth();
     return await toNodeHandler(auth)(req, res);
   } catch (error) {
     console.error("[Auth Handler Error]:", error);

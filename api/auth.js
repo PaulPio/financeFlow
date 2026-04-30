@@ -5,20 +5,10 @@ import { connectDB, mongoose } from "./db.js";
 
 dotenv.config();
 
-console.log("[Auth] Booting initialization...");
-
 if (!process.env.BETTER_AUTH_SECRET) {
     console.error("[Auth] Missing BETTER_AUTH_SECRET");
     throw new Error("BETTER_AUTH_SECRET is missing in environment variables");
 }
-
-// Reuse the shared Mongoose connection — no separate MongoClient needed
-console.log("[Auth] Connecting to MongoDB via shared pool...");
-await connectDB();
-console.log("[Auth] Connected successfully");
-
-// mongoose.connection.db is the native Db object required by the MongoDB adapter
-const db = mongoose.connection.db;
 
 const getBaseURL = () => {
     let url = process.env.BETTER_AUTH_URL;
@@ -47,35 +37,46 @@ console.log("[Auth] Initialization Summary:", {
     googleConfigured: !!(process.env.VITE_GOOGLE_CLIENT_ID && process.env.VITE_GOOGLE_CLIENT_SECRET)
 });
 
-export const auth = betterAuth({
-    database: mongodbAdapter(db),
-    secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: finalBaseURL,
-    emailAndPassword: {
-        enabled: true
-    },
-    socialProviders: {
-        google: {
-            clientId: process.env.VITE_GOOGLE_CLIENT_ID,
-            clientSecret: process.env.VITE_GOOGLE_CLIENT_SECRET,
-            enabled: !!(process.env.VITE_GOOGLE_CLIENT_ID && process.env.VITE_GOOGLE_CLIENT_SECRET),
-        }
-    },
-    user: {
-        additionalFields: {
-            hasCompletedOnboarding: {
-                type: "boolean",
-                required: false,
-                defaultValue: false
+let _auth = null;
+
+export async function getAuth() {
+    if (_auth && mongoose.connection.readyState === 1) return _auth;
+
+    await connectDB();
+    const db = mongoose.connection.db;
+
+    _auth = betterAuth({
+        database: mongodbAdapter(db),
+        secret: process.env.BETTER_AUTH_SECRET,
+        baseURL: finalBaseURL,
+        emailAndPassword: {
+            enabled: true
+        },
+        socialProviders: {
+            google: {
+                clientId: process.env.VITE_GOOGLE_CLIENT_ID,
+                clientSecret: process.env.VITE_GOOGLE_CLIENT_SECRET,
+                enabled: !!(process.env.VITE_GOOGLE_CLIENT_ID && process.env.VITE_GOOGLE_CLIENT_SECRET),
             }
-        }
-    },
-    trustedOrigins: [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5000",
-        "http://localhost:5173",
-        "https://finance-flow-lac.vercel.app",
-        "https://finance-flow-git-vercel-paulpios-projects.vercel.app"
-    ]
-});
+        },
+        user: {
+            additionalFields: {
+                hasCompletedOnboarding: {
+                    type: "boolean",
+                    required: false,
+                    defaultValue: false
+                }
+            }
+        },
+        trustedOrigins: [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:5000",
+            "http://localhost:5173",
+            "https://finance-flow-lac.vercel.app",
+            "https://finance-flow-git-vercel-paulpios-projects.vercel.app"
+        ]
+    });
+
+    return _auth;
+}

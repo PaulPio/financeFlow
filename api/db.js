@@ -16,7 +16,13 @@ if (!cached) {
 }
 
 export async function connectDB() {
-    if (cached.conn) return cached.conn;
+    if (cached.conn && mongoose.connection.readyState === 1) return cached.conn;
+
+    // Reset stale state if the connection has dropped
+    if (mongoose.connection.readyState !== 1) {
+        cached.conn = null;
+        cached.promise = null;
+    }
 
     if (!cached.promise) {
         cached.promise = mongoose.connect(MONGODB_URI.trim(), {
@@ -24,6 +30,10 @@ export async function connectDB() {
             maxPoolSize: 10,
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
+        }).catch(err => {
+            cached.promise = null;
+            cached.conn = null;
+            throw err;
         });
     }
 

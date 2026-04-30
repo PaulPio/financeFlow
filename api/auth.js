@@ -75,8 +75,12 @@ export async function getAuth() {
             "http://localhost:5173",
             "https://finance-flow-lac.vercel.app",
             "https://finance-flow-git-vercel-paulpios-projects.vercel.app"
-        ]
+        ],
+        advanced: {
+            trustProxy: true
+        }
     });
 
     return _auth;
 }
+

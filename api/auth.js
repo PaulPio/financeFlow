@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import { connectDB, mongoose } from "./db.js";
 
@@ -38,12 +39,19 @@ console.log("[Auth] Initialization Summary:", {
 });
 
 let _auth = null;
+let _mongoClient = null;
 
 export async function getAuth() {
     if (_auth && mongoose.connection.readyState === 1) return _auth;
 
     await connectDB();
-    const db = mongoose.connection.db;
+
+    // Create a dedicated MongoClient for Better Auth to avoid BSON version conflicts with Mongoose 9.x
+    if (!_mongoClient) {
+        _mongoClient = new MongoClient(process.env.MONGODB_URI.trim());
+        await _mongoClient.connect();
+    }
+    const db = _mongoClient.db('financeflow');
 
     _auth = betterAuth({
         database: mongodbAdapter(db),
@@ -83,4 +91,3 @@ export async function getAuth() {
 
     return _auth;
 }
-
